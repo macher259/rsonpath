@@ -1,6 +1,6 @@
 use crate::input::{
     error::{InputError, InputErrorConvertible},
-    Input,
+    *,
 };
 use rsonpath_syntax::str::JsonString;
 
@@ -20,7 +20,7 @@ pub(crate) fn find_label_in_first_block<'i, 'r, I, const N: usize>(
     label: &JsonString,
 ) -> Result<Option<(usize, I::Block<'i, N>)>, InputError>
 where
-    I: Input,
+    I: BasicInput + ForwardSeekableInput,
     'i: 'r,
 {
     let block_idx = start_idx % N;

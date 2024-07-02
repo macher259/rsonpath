@@ -37,6 +37,8 @@ macro_rules! repr_align_block_size {
         $it
     };
 }
+use crate::input::borrowed::BorrowedBytesBlockIterator;
+use crate::input::padding::TwoSidesPaddedInput;
 pub(crate) use repr_align_block_size;
 
 /// Global padding guarantee for all [`Input`] implementations.
@@ -50,9 +52,7 @@ pub(crate) use repr_align_block_size;
 /// For this value to change a new, wider SIMD implementation would have to appear.
 pub const MAX_BLOCK_SIZE: usize = 128;
 
-/// UTF-8 encoded bytes representing a JSON document that support
-/// block-by-block iteration and basic seeking procedures.
-pub trait Input: Sized {
+pub trait BasicInput: Sized {
     /// Type of the iterator used by [`iter_blocks`](Input::iter_blocks), parameterized
     /// by the lifetime of source input and the size of the block.
     type BlockIterator<'i, 'r, R, const N: usize>: InputBlockIterator<
@@ -109,12 +109,20 @@ pub trait Input: Sized {
     where
         R: InputRecorder<Self::Block<'i, N>>;
 
-    /// Search for an occurrence of `needle` in the input,
-    /// starting from `from` and looking back. Returns the index
-    /// of the first occurrence or `None` if the `needle` was not found.
-    #[must_use]
-    fn seek_backward(&self, from: usize, needle: u8) -> Option<usize>;
+    /// Decide whether the slice of input between `from` (inclusive)
+    /// and `to` (exclusive) matches the `member` (comparing bitwise,
+    /// including double quotes delimiters).
+    ///
+    /// This will also check if the leading double quote is not
+    /// escaped by a backslash character.
+    ///
+    /// # Errors
+    /// This function can read more data from the input if `to` falls beyond
+    /// the range that was already read, and the read operation can fail.
+    fn is_member_match(&self, from: usize, to: usize, member: &JsonString) -> Result<bool, Self::Error>;
+}
 
+pub trait ForwardSeekableInput: BasicInput {
     /// Search for an occurrence of any of the `needles` in the input,
     /// starting from `from` and looking forward. Returns the index
     /// of the first occurrence and the needle found, or `None` if none of the `needles` were not found.
@@ -140,18 +148,16 @@ pub trait Input: Sized {
     /// or `None` if no non-whitespace characters were found.
     #[must_use]
     fn seek_non_whitespace_backward(&self, from: usize) -> Option<(usize, u8)>;
+}
 
-    /// Decide whether the slice of input between `from` (inclusive)
-    /// and `to` (exclusive) matches the `member` (comparing bitwise,
-    /// including double quotes delimiters).
-    ///
-    /// This will also check if the leading double quote is not
-    /// escaped by a backslash character.
-    ///
-    /// # Errors
-    /// This function can read more data from the input if `to` falls beyond
-    /// the range that was already read, and the read operation can fail.
-    fn is_member_match(&self, from: usize, to: usize, member: &JsonString) -> Result<bool, Self::Error>;
+/// UTF-8 encoded bytes representing a JSON document that support
+/// block-by-block iteration and basic seeking procedures.
+pub trait BackwardsSeekableInput: BasicInput {
+    /// Search for an occurrence of `needle` in the input,
+    /// starting from `from` and looking back. Returns the index
+    /// of the first occurrence or `None` if the `needle` was not found.
+    #[must_use]
+    fn seek_backward(&self, from: usize, needle: u8) -> Option<usize>;
 }
 
 /// An iterator over blocks of input of size `N`.

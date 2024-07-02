@@ -17,7 +17,7 @@
 //! reallocating the internal buffers.
 
 use super::{
-    error::InputError, repr_align_block_size, Input, InputBlock, InputBlockIterator, SliceSeekable, MAX_BLOCK_SIZE,
+    error::InputError, repr_align_block_size, InputBlock, InputBlockIterator, SliceSeekable, MAX_BLOCK_SIZE, *,
 };
 use crate::{error::InternalRsonpathError, result::InputRecorder, JSON_SPACE_BYTE};
 use rsonpath_syntax::str::JsonString;
@@ -130,13 +130,16 @@ impl<R: Read> BufferedInput<R> {
     }
 }
 
-impl<R: Read> Input for BufferedInput<R> {
+impl<R: Read> BasicInput for BufferedInput<R> {
     type BlockIterator<'a, 'r, IR, const N: usize> = BufferedInputBlockIterator<'a, 'r, R, IR, N>
-        where Self: 'a,
-              IR: InputRecorder<BufferedInputBlock<N>> + 'r;
+    where
+        Self: 'a,
+        IR: InputRecorder<BufferedInputBlock<N>> + 'r;
 
     type Error = InputError;
-    type Block<'a, const N: usize> = BufferedInputBlock<N> where Self: 'a;
+    type Block<'a, const N: usize> = BufferedInputBlock<N>
+    where
+        Self: 'a;
 
     #[inline(always)]
     fn leading_padding_len(&self) -> usize {
@@ -166,11 +169,30 @@ impl<R: Read> Input for BufferedInput<R> {
     }
 
     #[inline(always)]
+    fn is_member_match(&self, from: usize, to: usize, member: &JsonString) -> Result<bool, Self::Error> {
+        let mut buf = self.0.borrow_mut();
+
+        while buf.len() < to {
+            if !buf.read_more()? {
+                return Ok(false);
+            }
+        }
+
+        let bytes = buf.as_slice();
+        let slice = &bytes[from..to];
+        Ok(member.quoted().as_bytes() == slice && (from == 0 || bytes[from - 1] != b'\\'))
+    }
+}
+
+impl<R: Read> BackwardsSeekableInput for BufferedInput<R> {
+    #[inline(always)]
     fn seek_backward(&self, from: usize, needle: u8) -> Option<usize> {
         let buf = self.0.borrow();
         buf.as_slice().seek_backward(from, needle)
     }
+}
 
+impl<R: Read> ForwardSeekableInput for BufferedInput<R> {
     #[inline]
     fn seek_forward<const N: usize>(&self, from: usize, needles: [u8; N]) -> Result<Option<(usize, u8)>, InputError> {
         let mut buf = self.0.borrow_mut();
@@ -211,21 +233,6 @@ impl<R: Read> Input for BufferedInput<R> {
     fn seek_non_whitespace_backward(&self, from: usize) -> Option<(usize, u8)> {
         let buf = self.0.borrow();
         buf.as_slice().seek_non_whitespace_backward(from)
-    }
-
-    #[inline(always)]
-    fn is_member_match(&self, from: usize, to: usize, member: &JsonString) -> Result<bool, Self::Error> {
-        let mut buf = self.0.borrow_mut();
-
-        while buf.len() < to {
-            if !buf.read_more()? {
-                return Ok(false);
-            }
-        }
-
-        let bytes = buf.as_slice();
-        let slice = &bytes[from..to];
-        Ok(member.quoted().as_bytes() == slice && (from == 0 || bytes[from - 1] != b'\\'))
     }
 }
 

@@ -11,18 +11,18 @@ pub(crate) struct Constructor;
 impl MemmemImpl for Constructor {
     type Classifier<'i, 'b, 'r, I, R> = Avx2MemmemClassifier64<'i, 'b, 'r, I, R>
     where
-        I: Input + 'i,
-        <I as Input>::BlockIterator<'i, 'r, R, BLOCK_SIZE>: 'b,
-        R: InputRecorder<<I as Input>::Block<'i, BLOCK_SIZE>> + 'r,
+        I: BasicInput + ForwardSeekableInput + 'i,
+        <I>::BlockIterator<'i, 'r, R, BLOCK_SIZE>: 'b,
+        R: InputRecorder<<I>::Block<'i, BLOCK_SIZE>> + 'r,
         'i: 'r;
 
     fn memmem<'i, 'b, 'r, I, R>(
         input: &'i I,
-        iter: &'b mut <I as Input>::BlockIterator<'i, 'r, R, BLOCK_SIZE>,
+        iter: &'b mut <I>::BlockIterator<'i, 'r, R, BLOCK_SIZE>,
     ) -> Self::Classifier<'i, 'b, 'r, I, R>
     where
-        I: Input,
-        R: InputRecorder<<I as Input>::Block<'i, BLOCK_SIZE>>,
+        I: BasicInput + ForwardSeekableInput,
+        R: InputRecorder<<I>::Block<'i, BLOCK_SIZE>>,
         'i: 'r,
     {
         Self::Classifier { input, iter }
@@ -31,7 +31,7 @@ impl MemmemImpl for Constructor {
 
 pub(crate) struct Avx2MemmemClassifier64<'i, 'b, 'r, I, R>
 where
-    I: Input,
+    I: BasicInput,
     R: InputRecorder<I::Block<'i, SIZE>> + 'r,
 {
     input: &'i I,
@@ -40,7 +40,7 @@ where
 
 impl<'i, 'b, 'r, I, R> Avx2MemmemClassifier64<'i, 'b, 'r, I, R>
 where
-    I: Input,
+    I: BasicInput,
     R: InputRecorder<I::Block<'i, SIZE>>,
     'i: 'r,
 {
@@ -160,7 +160,7 @@ where
 
 impl<'i, 'b, 'r, I, R> Memmem<'i, 'b, 'r, I, SIZE> for Avx2MemmemClassifier64<'i, 'b, 'r, I, R>
 where
-    I: Input,
+    I: BasicInput + ForwardSeekableInput,
     R: InputRecorder<I::Block<'i, SIZE>>,
     'i: 'r,
 {

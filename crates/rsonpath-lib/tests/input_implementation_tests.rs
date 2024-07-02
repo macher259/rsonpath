@@ -321,7 +321,7 @@ fn create_buffered(bytes: &[u8]) -> BufferedInput<ReadBytes> {
     BufferedInput::new(read)
 }
 
-fn test_equivalence<I: Input>(original_contents: &[u8], input: I) {
+fn test_equivalence<I: BasicInput>(original_contents: &[u8], input: I) {
     let original_length = original_contents.len();
     let mut input_contents = read_input_to_end(input).unwrap();
 
@@ -330,7 +330,7 @@ fn test_equivalence<I: Input>(original_contents: &[u8], input: I) {
     buffered_assert_eq(&input_contents.data, original_contents);
 }
 
-fn read_input_to_end<I: Input>(input: I) -> Result<ResultInput, InputError> {
+fn read_input_to_end<I: BasicInput>(input: I) -> Result<ResultInput, InputError> {
     let mut result: Vec<u8> = vec![];
     let mut iter = input.iter_blocks::<_, BLOCK_SIZE>(&EmptyRecorder);
 

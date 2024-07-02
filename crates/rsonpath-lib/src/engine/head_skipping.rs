@@ -16,7 +16,7 @@ use crate::{
     engine::EngineError,
     input::{
         error::{InputError, InputErrorConvertible},
-        Input, InputBlockIterator,
+        *,
     },
     result::Recorder,
     FallibleIterator, MaskType, BLOCK_SIZE,
@@ -26,7 +26,7 @@ use rsonpath_syntax::str::JsonString;
 /// Trait that needs to be implemented by an [`Engine`](`super::Engine`) to use this submodule.
 pub(super) trait CanHeadSkip<'i, 'r, I, R, V>
 where
-    I: Input + 'i,
+    I: BasicInput + 'i,
     R: Recorder<I::Block<'i, BLOCK_SIZE>>,
     V: Simd,
 {
@@ -69,7 +69,7 @@ pub(super) struct HeadSkip<'b, 'q, I, V, const N: usize> {
     simd: V,
 }
 
-impl<'b, 'q, I: Input, V: Simd> HeadSkip<'b, 'q, I, V, BLOCK_SIZE> {
+impl<'b, 'q, I: BasicInput + ForwardSeekableInput, V: Simd> HeadSkip<'b, 'q, I, V, BLOCK_SIZE> {
     /// Create a new instance of the head-skipping decorator over a given input
     /// and for a compiled query [`Automaton`].
     ///
@@ -129,7 +129,7 @@ impl<'b, 'q, I: Input, V: Simd> HeadSkip<'b, 'q, I, V, BLOCK_SIZE> {
             'b: 'r,
             E: CanHeadSkip<'b, 'r, I, R, V>,
             R: Recorder<I::Block<'b, BLOCK_SIZE>> + 'r,
-            I: Input,
+            I: BasicInput + ForwardSeekableInput,
             V: Simd
         {
             let mut input_iter = head_skip.bytes.iter_blocks(engine.recorder());

@@ -209,11 +209,7 @@ use super::{
     structural::{BracketType, StructuralImpl, StructuralIterator},
     ResumeClassifierState,
 };
-use crate::{
-    input::{Input, InputBlockIterator},
-    result::InputRecorder,
-    MaskType, BLOCK_SIZE,
-};
+use crate::{input::*, result::InputRecorder, MaskType, BLOCK_SIZE};
 use cfg_if::cfg_if;
 use std::{fmt::Display, marker::PhantomData};
 
@@ -237,9 +233,9 @@ pub(crate) trait Simd: Copy {
     /// The implementation of [`Memmem`] of this SIMD configuration.
     type MemmemClassifier<'i, 'b, 'r, I, R>: Memmem<'i, 'b, 'r, I, BLOCK_SIZE>
     where
-        I: Input + 'i,
-        <I as Input>::BlockIterator<'i, 'r, R, BLOCK_SIZE>: 'b,
-        R: InputRecorder<<I as Input>::Block<'i, BLOCK_SIZE>> + 'r,
+        I: BasicInput + ForwardSeekableInput + 'i,
+        <I>::BlockIterator<'i, 'r, R, BLOCK_SIZE>: 'b,
+        R: InputRecorder<<I>::Block<'i, BLOCK_SIZE>> + 'r,
         'i: 'r;
 
     /// Get a unique descriptor of the enabled SIMD capabilities.
@@ -310,11 +306,11 @@ pub(crate) trait Simd: Copy {
     fn memmem<'i, 'b, 'r, I, R>(
         self,
         input: &'i I,
-        iter: &'b mut <I as Input>::BlockIterator<'i, 'r, R, BLOCK_SIZE>,
+        iter: &'b mut <I>::BlockIterator<'i, 'r, R, BLOCK_SIZE>,
     ) -> Self::MemmemClassifier<'i, 'b, 'r, I, R>
     where
-        I: Input,
-        R: InputRecorder<<I as Input>::Block<'i, BLOCK_SIZE>>,
+        I: BasicInput + ForwardSeekableInput,
+        R: InputRecorder<<I>::Block<'i, BLOCK_SIZE>>,
         'i: 'r;
 }
 
@@ -357,9 +353,9 @@ where
 
     type MemmemClassifier<'i, 'b, 'r, I, R> = M::Classifier<'i, 'b, 'r, I, R>
     where
-        I: Input + 'i,
-        <I as Input>::BlockIterator<'i, 'r, R, BLOCK_SIZE>: 'b,
-        R: InputRecorder<<I as Input>::Block<'i, BLOCK_SIZE>> + 'r,
+        I: BasicInput + ForwardSeekableInput+ 'i,
+        <I>::BlockIterator<'i, 'r, R, BLOCK_SIZE>: 'b,
+        R: InputRecorder<<I>::Block<'i, BLOCK_SIZE>> + 'r,
         'i: 'r;
 
     #[inline(always)]
@@ -432,11 +428,11 @@ where
     fn memmem<'i, 'b, 'r, I, R>(
         self,
         input: &'i I,
-        iter: &'b mut <I as Input>::BlockIterator<'i, 'r, R, BLOCK_SIZE>,
+        iter: &'b mut <I>::BlockIterator<'i, 'r, R, BLOCK_SIZE>,
     ) -> Self::MemmemClassifier<'i, 'b, 'r, I, R>
     where
-        I: Input,
-        R: InputRecorder<<I as Input>::Block<'i, BLOCK_SIZE>>,
+        I: BasicInput + ForwardSeekableInput,
+        R: InputRecorder<<I>::Block<'i, BLOCK_SIZE>>,
         'i: 'r,
     {
         M::memmem(input, iter)

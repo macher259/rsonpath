@@ -11,10 +11,11 @@ pub use main::MainEngine as RsonpathEngine;
 mod select_root_query;
 
 use self::error::EngineError;
+use crate::input::{BackwardsSeekableInput, BasicInput, ForwardSeekableInput};
 use crate::{
     automaton::{error::CompilerError, Automaton},
-    input::Input,
     result::{Match, MatchCount, MatchIndex, MatchSpan, Sink},
+    *,
 };
 use rsonpath_syntax::JsonPathQuery;
 
@@ -35,7 +36,7 @@ pub trait Engine {
     /// It _is_ guaranteed that the computation terminates and does not panic.
     fn count<I>(&self, input: &I) -> Result<MatchCount, EngineError>
     where
-        I: Input;
+        I: BasicInput + ForwardSeekableInput + BackwardsSeekableInput;
 
     /// Find the starting indices of matches on the given [`Input`] and write them to the [`Sink`].
     ///
@@ -53,7 +54,7 @@ pub trait Engine {
     /// It _is_ guaranteed that the computation terminates and does not panic.
     fn indices<I, S>(&self, input: &I, sink: &mut S) -> Result<(), EngineError>
     where
-        I: Input,
+        I: BasicInput + ForwardSeekableInput + BackwardsSeekableInput,
         S: Sink<MatchIndex>;
 
     /// Find the approximate spans of matches on the given [`Input`] and write them to the [`Sink`].
@@ -78,7 +79,7 @@ pub trait Engine {
     /// It _is_ guaranteed that the computation terminates and does not panic.
     fn approximate_spans<I, S>(&self, input: &I, sink: &mut S) -> Result<(), EngineError>
     where
-        I: Input,
+        I: BasicInput + ForwardSeekableInput + BackwardsSeekableInput,
         S: Sink<MatchSpan>;
 
     /// Find all matches on the given [`Input`] and write them to the [`Sink`].
@@ -93,7 +94,7 @@ pub trait Engine {
     /// It _is_ guaranteed that the computation terminates and does not panic.
     fn matches<I, S>(&self, input: &I, sink: &mut S) -> Result<(), EngineError>
     where
-        I: Input,
+        I: BasicInput + ForwardSeekableInput + BackwardsSeekableInput,
         S: Sink<Match>;
 }
 

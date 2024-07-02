@@ -4,8 +4,9 @@
 //! we assume the root opening was already read. This makes it incompatible with
 //! an empty query. Instead of rewriting the engine we provide fast-path implementations
 //! here.
+use crate::input::ForwardSeekableInput;
 use crate::{
-    engine::{error::EngineError, Input},
+    engine::{error::EngineError, *},
     input::{error::InputErrorConvertible, InputBlockIterator},
     is_json_whitespace,
     result::{empty::EmptyRecorder, Match, MatchCount, MatchIndex, MatchSpan, Sink},
@@ -15,7 +16,7 @@ use crate::{
 /// Count for an empty query &ndash; determine if the root exists.
 pub(super) fn count<I>(input: &I) -> Result<MatchCount, EngineError>
 where
-    I: Input,
+    I: BasicInput + ForwardSeekableInput,
 {
     // Assuming a correct JSON, there is either one root if any non-whitespace character
     // occurs in the document, or the document is empty.
@@ -29,7 +30,7 @@ where
 /// Index for an empty query &ndash; determine the first index of the root.
 pub(super) fn index<I, S>(input: &I, sink: &mut S) -> Result<(), EngineError>
 where
-    I: Input,
+    I: BasicInput + ForwardSeekableInput,
     S: Sink<MatchIndex>,
 {
     // Assuming a correct JSON, the root starts at the first non-whitespace character, if any.
@@ -44,7 +45,7 @@ where
 /// Approximate span for an empty query &ndash; determine the first index and the length of the root.
 pub(super) fn approx_span<I, S>(input: &I, sink: &mut S) -> Result<(), EngineError>
 where
-    I: Input,
+    I: BasicInput + ForwardSeekableInput,
     S: Sink<MatchSpan>,
 {
     // The root spans the entire document, by definition, with the exception of whitespace.
@@ -83,7 +84,7 @@ where
 /// Match for an empty query &ndash; copy the entire document, trimming whitespace.
 pub(super) fn match_<I, S>(input: &I, sink: &mut S) -> Result<(), EngineError>
 where
-    I: Input,
+    I: BasicInput,
     S: Sink<Match>,
 {
     // For a full match we need to copy the entire input starting from first non-whitespace,

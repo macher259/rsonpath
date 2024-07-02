@@ -4,7 +4,7 @@ use crate::{
         structural::{BracketType, Structural, StructuralIterator},
     },
     input::BorrowedBytes,
-    input::Input,
+    input::*,
     result::empty::EmptyRecorder,
     FallibleIterator,
 };

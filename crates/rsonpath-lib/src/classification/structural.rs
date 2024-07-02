@@ -206,7 +206,7 @@ mod tests {
     use super::*;
     use crate::{
         classification::simd::{self, config_simd, Simd},
-        input::{BorrowedBytes, Input},
+        input::{BorrowedBytes, *},
         result::empty::EmptyRecorder,
     };
 

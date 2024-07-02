@@ -2,13 +2,13 @@ use crate::{
     debug,
     input::{
         error::{InputError, InputErrorConvertible},
-        Input,
+        *,
     },
 };
 use rsonpath_syntax::str::JsonString;
 
 #[inline(always)]
-pub(crate) fn find_in_mask<I: Input>(
+pub(crate) fn find_in_mask<I: BasicInput>(
     input: &I,
     label: &JsonString,
     previous_block: u64,

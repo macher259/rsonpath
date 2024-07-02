@@ -19,7 +19,7 @@ use super::{
     borrowed::BorrowedBytesBlockIterator,
     error::{Infallible, InputError},
     padding::PaddedBlock,
-    Input, SliceSeekable, MAX_BLOCK_SIZE,
+    SliceSeekable, MAX_BLOCK_SIZE, *,
 };
 use crate::{input::padding::EndPaddedInput, result::InputRecorder};
 use memmap2::{Mmap, MmapAsRawDesc};
@@ -65,7 +65,7 @@ impl MmapInput {
     }
 }
 
-impl Input for MmapInput {
+impl BasicInput for MmapInput {
     type BlockIterator<'a, 'r, R, const N: usize> = BorrowedBytesBlockIterator<'r, EndPaddedInput<'a>, R, N>
     where
         R: InputRecorder<&'a [u8]> + 'r;
@@ -97,7 +97,25 @@ impl Input for MmapInput {
 
         BorrowedBytesBlockIterator::new(padded_input, recorder)
     }
+    #[inline]
+    fn is_member_match(&self, from: usize, to: usize, member: &JsonString) -> Result<bool, Self::Error> {
+        debug_assert!(from < to);
+        // The hot path is when we're checking fully within the middle section.
+        // This has to be as fast as possible, so the "cold" path referring to the TwoSidesPaddedInput
+        // impl is explicitly marked with #[cold].
+        if to < self.last_block_start {
+            // This is the hot path -- do the bounds check and memcmp.
+            let bytes = &self.mmap;
+            let slice = &bytes[from..to];
+            Ok(member.quoted().as_bytes() == slice && (from == 0 || bytes[from - 1] != b'\\'))
+        } else {
+            // This is a very expensive, cold path.
+            Ok(self.as_padded_input().is_member_match(from, to, member))
+        }
+    }
+}
 
+impl BackwardsSeekableInput for MmapInput {
     #[inline]
     fn seek_backward(&self, from: usize, needle: u8) -> Option<usize> {
         return if from < self.last_block_start {
@@ -106,7 +124,9 @@ impl Input for MmapInput {
             self.as_padded_input().seek_backward(from, needle)
         };
     }
+}
 
+impl ForwardSeekableInput for MmapInput {
     #[inline]
     fn seek_forward<const N: usize>(&self, from: usize, needles: [u8; N]) -> Result<Option<(usize, u8)>, Infallible> {
         return Ok(if from < self.last_block_start {
@@ -158,22 +178,5 @@ impl Input for MmapInput {
         } else {
             self.as_padded_input().seek_non_whitespace_backward(from)
         };
-    }
-
-    #[inline]
-    fn is_member_match(&self, from: usize, to: usize, member: &JsonString) -> Result<bool, Self::Error> {
-        debug_assert!(from < to);
-        // The hot path is when we're checking fully within the middle section.
-        // This has to be as fast as possible, so the "cold" path referring to the TwoSidesPaddedInput
-        // impl is explicitly marked with #[cold].
-        if to < self.last_block_start {
-            // This is the hot path -- do the bounds check and memcmp.
-            let bytes = &self.mmap;
-            let slice = &bytes[from..to];
-            Ok(member.quoted().as_bytes() == slice && (from == 0 || bytes[from - 1] != b'\\'))
-        } else {
-            // This is a very expensive, cold path.
-            Ok(self.as_padded_input().is_member_match(from, to, member))
-        }
     }
 }

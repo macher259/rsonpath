@@ -16,7 +16,7 @@ use super::{
     align_to,
     error::Infallible,
     padding::{EndPaddedInput, PaddedBlock, TwoSidesPaddedInput},
-    Input, InputBlockIterator, SliceSeekable, MAX_BLOCK_SIZE,
+    InputBlockIterator, SliceSeekable, MAX_BLOCK_SIZE, *,
 };
 use crate::{debug, result::InputRecorder};
 use rsonpath_syntax::str::JsonString;
@@ -88,13 +88,16 @@ where
     }
 }
 
-impl<'a> Input for BorrowedBytes<'a> {
+impl<'a> BasicInput for BorrowedBytes<'a> {
     type BlockIterator<'b, 'r, R, const N: usize> = BorrowedBytesBlockIterator<'r, TwoSidesPaddedInput<'b>, R, N>
-    where Self: 'b,
-          R: InputRecorder<&'b [u8]> + 'r;
+    where
+        Self: 'b,
+        R: InputRecorder<&'b [u8]> + 'r;
 
     type Error = Infallible;
-    type Block<'b, const N: usize> = &'b [u8] where Self: 'b;
+    type Block<'b, const N: usize> = &'b [u8]
+    where
+        Self: 'b;
 
     #[inline(always)]
     fn leading_padding_len(&self) -> usize {
@@ -124,7 +127,27 @@ impl<'a> Input for BorrowedBytes<'a> {
             recorder,
         }
     }
+    #[inline(always)]
+    fn is_member_match(&self, from: usize, to: usize, member: &JsonString) -> Result<bool, Self::Error> {
+        debug_assert!(from < to);
+        // The hot path is when we're checking fully within the middle section.
+        // This has to be as fast as possible, so the "cold" path referring to the TwoSidesPaddedInput
+        // impl is explicitly marked with #[cold].
+        if from > MAX_BLOCK_SIZE && to < self.middle_bytes.len() + MAX_BLOCK_SIZE {
+            // This is the hot path -- do the bounds check and memcmp.
+            let bytes = self.middle_bytes;
+            let from = from - MAX_BLOCK_SIZE;
+            let to = to - MAX_BLOCK_SIZE;
+            let slice = &bytes[from..to];
+            Ok(member.quoted().as_bytes() == slice && (from == 0 || bytes[from - 1] != b'\\'))
+        } else {
+            // This is a very expensive, cold path.
+            Ok(self.as_padded_input().is_member_match(from, to, member))
+        }
+    }
+}
 
+impl<'a> BackwardsSeekableInput for BorrowedBytes<'a> {
     #[inline]
     fn seek_backward(&self, from: usize, needle: u8) -> Option<usize> {
         return if from >= MAX_BLOCK_SIZE && from < self.middle_bytes.len() + MAX_BLOCK_SIZE {
@@ -142,7 +165,9 @@ impl<'a> Input for BorrowedBytes<'a> {
             first_block.bytes().seek_backward(first_block.len() - 1, needle)
         }
     }
+}
 
+impl<'a> ForwardSeekableInput for BorrowedBytes<'a> {
     #[inline]
     fn seek_forward<const N: usize>(&self, from: usize, needles: [u8; N]) -> Result<Option<(usize, u8)>, Infallible> {
         return Ok(
@@ -211,25 +236,6 @@ impl<'a> Input for BorrowedBytes<'a> {
         #[inline(never)]
         fn handle_first(first_block: &PaddedBlock) -> Option<(usize, u8)> {
             first_block.bytes().seek_non_whitespace_backward(first_block.len() - 1)
-        }
-    }
-
-    #[inline(always)]
-    fn is_member_match(&self, from: usize, to: usize, member: &JsonString) -> Result<bool, Self::Error> {
-        debug_assert!(from < to);
-        // The hot path is when we're checking fully within the middle section.
-        // This has to be as fast as possible, so the "cold" path referring to the TwoSidesPaddedInput
-        // impl is explicitly marked with #[cold].
-        if from > MAX_BLOCK_SIZE && to < self.middle_bytes.len() + MAX_BLOCK_SIZE {
-            // This is the hot path -- do the bounds check and memcmp.
-            let bytes = self.middle_bytes;
-            let from = from - MAX_BLOCK_SIZE;
-            let to = to - MAX_BLOCK_SIZE;
-            let slice = &bytes[from..to];
-            Ok(member.quoted().as_bytes() == slice && (from == 0 || bytes[from - 1] != b'\\'))
-        } else {
-            // This is a very expensive, cold path.
-            Ok(self.as_padded_input().is_member_match(from, to, member))
         }
     }
 }
