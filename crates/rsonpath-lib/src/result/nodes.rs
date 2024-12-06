@@ -16,7 +16,11 @@ use std::{
 };
 
 /// Recorder that saves full info about a [`Match`].
-pub struct NodesRecorder<'s, B, S> {
+pub struct NodesRecorder<'s, B, S>
+where
+    B: Deref<Target = [u8]>,
+    S: Sink<Match>,
+{
     internal: RefCell<InternalRecorder<'s, B, S>>,
 }
 
@@ -32,7 +36,7 @@ where
     }
 }
 
-impl<B, S> InputRecorder<B> for NodesRecorder<'_, B, S>
+impl<'s, B, S> InputRecorder<B> for NodesRecorder<'s, B, S>
 where
     B: Deref<Target = [u8]>,
     S: Sink<Match>,
@@ -43,7 +47,7 @@ where
     }
 }
 
-impl<B, S> Recorder<B> for NodesRecorder<'_, B, S>
+impl<'s, B, S> Recorder<B> for NodesRecorder<'s, B, S>
 where
     B: Deref<Target = [u8]>,
     S: Sink<Match>,

@@ -4,6 +4,10 @@
 //! we assume the root opening was already read. This makes it incompatible with
 //! an empty query. Instead of rewriting the engine we provide fast-path implementations
 //! here.
+
+use crate::input::SeekableBackwardsInput;
+use crate::result::nodes::NodesRecorder;
+use crate::result::InputRecorder;
 use crate::{
     engine::{error::EngineError, Input},
     input::{error::InputErrorConvertible, InputBlockIterator},
@@ -11,13 +15,13 @@ use crate::{
     result::{empty::EmptyRecorder, Match, MatchCount, MatchIndex, MatchSpan, Sink},
     BLOCK_SIZE,
 };
-use crate::result::InputRecorder;
+use std::ops::Deref;
 
 /// Count for an empty query &ndash; determine if the root exists.
 pub(super) fn count<'i, 'r, I, R, const N: usize>(input: &I) -> Result<MatchCount, EngineError>
 where
     I: Input<'i, 'r, R, N>,
-    R: InputRecorder<I::Block> + 'r
+    R: InputRecorder<I::Block> + 'r,
 {
     // Assuming a correct JSON, there is either one root if any non-whitespace character
     // occurs in the document, or the document is empty.
@@ -85,10 +89,10 @@ where
 }
 
 /// Match for an empty query &ndash; copy the entire document, trimming whitespace.
-pub(super) fn match_<'i, 'r, I, R, S, const N: usize>(input: &I, sink: &mut S) -> Result<(), EngineError>
+pub(super) fn match_<'i, 's, I, B, S>(input: &'i I, sink: &'s mut S) -> Result<(), EngineError>
 where
-    I: Input<'i, 'r, R, N>,
-    R: InputRecorder<I::Block> + 'r,
+    I: for<'r> Input<'i, 'r, NodesRecorder<'s, B, S>, BLOCK_SIZE>,
+    B: Deref<Target = [u8]>,
     S: Sink<Match>,
 {
     // For a full match we need to copy the entire input starting from first non-whitespace,

@@ -38,8 +38,12 @@
  * state changes.
  */
 
-#![allow(clippy::type_complexity)] // The private Classifier type is very complex, but we specifically macro it out.
-use crate::input::SeekableBackwardsInput;
+#![allow(clippy::type_complexity)]
+
+use std::ops::Deref;
+// The private Classifier type is very complex, but we specifically macro it out.
+use crate::input::{Input, SeekableBackwardsInput};
+use crate::result::InputRecorder;
 use crate::{
     automaton::{error::CompilerError, Automaton, State},
     classification::{
@@ -64,7 +68,6 @@ use crate::{
 };
 use rsonpath_syntax::{num::JsonUInt, str::JsonString, JsonPathQuery};
 use smallvec::{smallvec, SmallVec};
-use crate::result::InputRecorder;
 
 /// Main engine for a fixed JSONPath query.
 ///
@@ -108,10 +111,9 @@ impl Compiler for MainEngine<'_> {
  */
 impl Engine for MainEngine<'_> {
     #[inline]
-    fn count<'i, 'r, I, R, const N: usize>(&self, input: &I) -> Result<MatchCount, EngineError>
+    fn count<'i, I>(&self, input: &'i I) -> Result<MatchCount, EngineError>
     where
-        I: SeekableBackwardsInput<'i, 'r, R, N>,
-        R: InputRecorder<I::Block> +'r,
+        I: for<'r> SeekableBackwardsInput<'i, 'r, CountRecorder, BLOCK_SIZE>,
     {
         if self.automaton.is_select_root_query() {
             return select_root_query::count(input);
@@ -130,10 +132,9 @@ impl Engine for MainEngine<'_> {
     }
 
     #[inline]
-    fn indices<'i, 'r, I, R, S, const N: usize>(&self, input: &I, sink: &mut S) -> Result<(), EngineError>
+    fn indices<'i, 's, I, S>(&self, input: &'i I, sink: &'s mut S) -> Result<(), EngineError>
     where
-        I: SeekableBackwardsInput<'i, 'r, R, N>,
-        R: InputRecorder<I::Block> + 'r,
+        I: for<'r> SeekableBackwardsInput<'i, 'r, IndexRecorder<'s, S>, BLOCK_SIZE>,
         S: Sink<MatchIndex>,
     {
         if self.automaton.is_select_root_query() {
@@ -153,10 +154,9 @@ impl Engine for MainEngine<'_> {
     }
 
     #[inline]
-    fn approximate_spans<'i, 'r, I, R, S, const N: usize>(&self, input: &I, sink: &mut S) -> Result<(), EngineError>
+    fn approximate_spans<'i, 's, I, S>(&self, input: &'i I, sink: &'s mut S) -> Result<(), EngineError>
     where
-        I: SeekableBackwardsInput<'i, 'r, R, N>,
-        R: InputRecorder<I::Block> + 'r,
+        I: for<'r> SeekableBackwardsInput<'i, 'r, ApproxSpanRecorder<'s, S>, BLOCK_SIZE>,
         S: Sink<MatchSpan>,
     {
         if self.automaton.is_select_root_query() {
@@ -176,10 +176,10 @@ impl Engine for MainEngine<'_> {
     }
 
     #[inline]
-    fn matches<'i, 'r, I, R, S, const N: usize>(&self, input: &I, sink: &mut S) -> Result<(), EngineError>
+    fn matches<'i, 's, I, B, S>(&self, input: &'i I, sink: &'s mut S) -> Result<(), EngineError>
     where
-        I: SeekableBackwardsInput<'i, 'r, R, N>,
-        R: InputRecorder<I::Block> + 'r,
+        I: for<'r> SeekableBackwardsInput<'i, 'r, NodesRecorder<'s, B, S>, BLOCK_SIZE>,
+        B: Deref<Target = [u8]>,
         S: Sink<Match>,
     {
         if self.automaton.is_select_root_query() {

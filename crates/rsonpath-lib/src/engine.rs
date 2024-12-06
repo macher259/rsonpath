@@ -7,18 +7,23 @@ pub mod error;
 mod head_skipping;
 pub mod main;
 mod tail_skipping;
+
 pub use main::MainEngine as RsonpathEngine;
+use std::ops::Deref;
 mod select_root_query;
 
 use self::error::EngineError;
-use crate::input::SeekableBackwardsInput;
+use crate::result::approx_span::ApproxSpanRecorder;
+use crate::result::index::IndexRecorder;
+use crate::result::nodes::NodesRecorder;
+use crate::result::{count::CountRecorder, InputRecorder};
 use crate::{
     automaton::{error::CompilerError, Automaton},
     input::Input,
     result::{Match, MatchCount, MatchIndex, MatchSpan, Sink},
 };
+use crate::{input::SeekableBackwardsInput, BLOCK_SIZE};
 use rsonpath_syntax::JsonPathQuery;
-use crate::result::InputRecorder;
 
 /// An engine that can run its query on a given input.
 pub trait Engine {
@@ -35,10 +40,9 @@ pub trait Engine {
     /// Some glaring errors like mismatched braces or double quotes are raised,
     /// but in general **the result of an engine run on an invalid JSON is undefined**.
     /// It _is_ guaranteed that the computation terminates and does not panic.
-    fn count<'i, 'r, I, R, const N: usize>(&self, input: &I) -> Result<MatchCount, EngineError>
+    fn count<'i, I>(&self, input: &'i I) -> Result<MatchCount, EngineError>
     where
-        R: InputRecorder<I::Block> + 'r,
-        I: SeekableBackwardsInput<'i, 'r, R, N>;
+        I: for<'r> SeekableBackwardsInput<'i, 'r, CountRecorder, BLOCK_SIZE>;
 
     /// Find the starting indices of matches on the given [`Input`] and write them to the [`Sink`].
     ///
@@ -54,10 +58,9 @@ pub trait Engine {
     /// Some glaring errors like mismatched braces or double quotes are raised,
     /// but in general **the result of an engine run on an invalid JSON is undefined**.
     /// It _is_ guaranteed that the computation terminates and does not panic.
-    fn indices<'i, 'r, I, R, S, const N: usize>(&self, input: &I, sink: &mut S) -> Result<(), EngineError>
+    fn indices<'i, 's, I, S>(&self, input: &'i I, sink: &'s mut S) -> Result<(), EngineError>
     where
-        I: SeekableBackwardsInput<'i, 'r, R, N>,
-        R: InputRecorder<I::Block> + 'r,
+        I: for<'r> SeekableBackwardsInput<'i, 'r, IndexRecorder<'s, S>, BLOCK_SIZE>,
         S: Sink<MatchIndex>;
 
     /// Find the approximate spans of matches on the given [`Input`] and write them to the [`Sink`].
@@ -80,10 +83,9 @@ pub trait Engine {
     /// Some glaring errors like mismatched braces or double quotes are raised,
     /// but in general **the result of an engine run on an invalid JSON is undefined**.
     /// It _is_ guaranteed that the computation terminates and does not panic.
-    fn approximate_spans<'i, 'r, I, R, S, const N: usize>(&self, input: &I, sink: &mut S) -> Result<(), EngineError>
+    fn approximate_spans<'i, 's, I, S>(&self, input: &'i I, sink: &'s mut S) -> Result<(), EngineError>
     where
-        I: SeekableBackwardsInput<'i, 'r, R, N>,
-        R: InputRecorder<I::Block> + 'r,
+        I: for<'r> SeekableBackwardsInput<'i, 'r, ApproxSpanRecorder<'s, S>, BLOCK_SIZE>,
         S: Sink<MatchSpan>;
 
     /// Find all matches on the given [`Input`] and write them to the [`Sink`].
@@ -96,10 +98,10 @@ pub trait Engine {
     /// Some glaring errors like mismatched braces or double quotes are raised,
     /// but in general **the result of an engine run on an invalid JSON is undefined**.
     /// It _is_ guaranteed that the computation terminates and does not panic.
-    fn matches<'i, 'r, I, R, S, const N: usize>(&self, input: &I, sink: &mut S) -> Result<(), EngineError>
+    fn matches<'i, 's, I, B, S>(&self, input: &'i I, sink: &'s mut S) -> Result<(), EngineError>
     where
-        I: SeekableBackwardsInput<'i, 'r, R, N>,
-        R: InputRecorder<I::Block> + 'r,
+        I: for<'r> SeekableBackwardsInput<'i, 'r, NodesRecorder<'s, I::Block, S>, BLOCK_SIZE>,
+        B: Deref<Target = [u8]>,
         S: Sink<Match>;
 }
 
