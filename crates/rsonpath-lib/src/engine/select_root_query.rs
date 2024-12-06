@@ -33,7 +33,7 @@ where
 }
 
 /// Index for an empty query &ndash; determine the first index of the root.
-pub(super) fn index<'i, 'r, I, R, S, const N: usize>(input: &I, sink: &mut S) -> Result<(), EngineError>
+pub(super) fn index<'i, 'r, I, R, S, const N: usize>(input: &'i I, sink: &mut S) -> Result<(), EngineError>
 where
     I: Input<'i, 'r, R, N>,
     R: InputRecorder<I::Block> + 'r,
@@ -49,7 +49,7 @@ where
 }
 
 /// Approximate span for an empty query &ndash; determine the first index and the length of the root.
-pub(super) fn approx_span<'i, 'r, I, R, S, const N: usize>(input: &I, sink: &mut S) -> Result<(), EngineError>
+pub(super) fn approx_span<'i, 'r, I, R, S, const N: usize>(input: &'i I, sink: &mut S) -> Result<(), EngineError>
 where
     I: Input<'i, 'r, R, N>,
     R: InputRecorder<I::Block> + 'r,
@@ -89,10 +89,11 @@ where
 }
 
 /// Match for an empty query &ndash; copy the entire document, trimming whitespace.
-pub(super) fn match_<'i, 's, I, B, S>(input: &'i I, sink: &'s mut S) -> Result<(), EngineError>
+pub(super) fn match_<'i, 's, I, R, B, S>(input: &'i I, sink: &'s mut S) -> Result<(), EngineError>
 where
-    I: for<'r> Input<'i, 'r, NodesRecorder<'s, B, S>, BLOCK_SIZE>,
-    B: Deref<Target = [u8]>,
+    I: for<'r> Input<'i, 'r, R, BLOCK_SIZE, Block=B>,
+    R: InputRecorder<B>,
+    B: crate::input::InputBlock<'i, BLOCK_SIZE>,
     S: Sink<Match>,
 {
     // For a full match we need to copy the entire input starting from first non-whitespace,

@@ -23,7 +23,7 @@ fn classify_string(json: &str) -> (Vec<Structural>, usize) {
         structural_classifier.turn_commas_on(0);
         structural_classifier.turn_colons_on(0);
 
-        (structural_classifier.collect().unwrap(), bytes.leading_padding_len())
+        (structural_classifier.collect().unwrap(), <BorrowedBytes<'_> as Input<'_, '_, EmptyRecorder, 64>>::leading_padding_len(&bytes))
     })
 }
 

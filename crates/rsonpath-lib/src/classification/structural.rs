@@ -250,7 +250,7 @@ mod tests {
             let input = BorrowedBytes::new(json_string.as_bytes());
             let iter = input.iter_blocks(&EmptyRecorder);
             let quotes = simd.classify_quoted_sequences(iter);
-            let offset = input.leading_padding_len();
+            let offset = <BorrowedBytes<'_> as Input<'_, '_, EmptyRecorder, 64>>::leading_padding_len(&input);
 
             let mut classifier = simd.classify_structural_characters(quotes);
             classifier.turn_commas_on(0);
@@ -282,7 +282,7 @@ mod tests {
             let input = BorrowedBytes::new(json_string.as_bytes());
             let iter = input.iter_blocks(&EmptyRecorder);
             let quotes = simd.classify_quoted_sequences(iter);
-            let offset = input.leading_padding_len();
+            let offset = <BorrowedBytes<'_> as Input<'_, '_, EmptyRecorder, 64>>::leading_padding_len(&input);
 
             let mut classifier = simd.classify_structural_characters(quotes);
             classifier.turn_colons_on(0);
@@ -314,7 +314,7 @@ mod tests {
             let input = BorrowedBytes::new(json_string.as_bytes());
             let iter = input.iter_blocks(&EmptyRecorder);
             let quotes = simd.classify_quoted_sequences(iter);
-            let offset = input.leading_padding_len();
+            let offset = <BorrowedBytes<'_> as Input<'_, '_, EmptyRecorder, 64>>::leading_padding_len(&input);
 
             let mut classifier = simd.classify_structural_characters(quotes);
             classifier.turn_commas_on(0);
@@ -351,7 +351,7 @@ mod tests {
             let input = BorrowedBytes::new(json_string.as_bytes());
             let iter = input.iter_blocks(&EmptyRecorder);
             let quotes = simd.classify_quoted_sequences(iter);
-            let offset = input.leading_padding_len();
+            let offset = <BorrowedBytes<'_> as Input<'_, '_, EmptyRecorder, 64>>::leading_padding_len(&input);
 
             let mut classifier = simd.classify_structural_characters(quotes);
 

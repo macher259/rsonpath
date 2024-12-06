@@ -70,7 +70,7 @@ mod tests {
 
         let owned_str = str.to_owned();
         let input = OwnedBytes::from(owned_str);
-        let mut leading_padding = input.leading_padding_len() as u64;
+        let mut leading_padding = <OwnedBytes<Vec<u8>> as Input<'_, '_, EmptyRecorder, 64>>::leading_padding_len(&input) as u64;
         let iter = input.iter_blocks(&EmptyRecorder);
         let mut classifier = Constructor::new(iter);
 

@@ -100,8 +100,8 @@ pub trait Engine {
     /// It _is_ guaranteed that the computation terminates and does not panic.
     fn matches<'i, 's, I, B, S>(&self, input: &'i I, sink: &'s mut S) -> Result<(), EngineError>
     where
-        I: for<'r> SeekableBackwardsInput<'i, 'r, NodesRecorder<'s, I::Block, S>, BLOCK_SIZE>,
-        B: Deref<Target = [u8]>,
+        I: for<'r> SeekableBackwardsInput<'i, 'r, NodesRecorder<'s, B, S>, BLOCK_SIZE, Block=B>,
+        B: crate::input::InputBlock<'i, BLOCK_SIZE>,
         S: Sink<Match>;
 }
 
