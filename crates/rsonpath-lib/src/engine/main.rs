@@ -111,9 +111,9 @@ impl Compiler for MainEngine<'_> {
  */
 impl Engine for MainEngine<'_> {
     #[inline]
-    fn count<'i, I>(&self, input: &'i I) -> Result<MatchCount, EngineError>
+    fn count<'i, I>(&'i self, input: &'i I) -> Result<MatchCount, EngineError>
     where
-        I: for<'r> SeekableBackwardsInput<'i, 'r, CountRecorder, BLOCK_SIZE>,
+        I: for<'r> SeekableBackwardsInput<'i, 'r, CountRecorder, BLOCK_SIZE>
     {
         if self.automaton.is_select_root_query() {
             return select_root_query::count(input);
@@ -132,7 +132,7 @@ impl Engine for MainEngine<'_> {
     }
 
     #[inline]
-    fn indices<'i, 's, I, S>(&self, input: &'i I, sink: &'s mut S) -> Result<(), EngineError>
+    fn indices<'i, 's, I, S>(&'i self, input: &'i I, sink: &'s mut S) -> Result<(), EngineError>
     where
         I: for<'r> SeekableBackwardsInput<'i, 'r, IndexRecorder<'s, S>, BLOCK_SIZE>,
         S: Sink<MatchIndex>,
@@ -154,7 +154,7 @@ impl Engine for MainEngine<'_> {
     }
 
     #[inline]
-    fn approximate_spans<'i, 's, I, S>(&self, input: &'i I, sink: &'s mut S) -> Result<(), EngineError>
+    fn approximate_spans<'i, 's, I, S>(&'i self, input: &'i I, sink: &'s mut S) -> Result<(), EngineError>
     where
         I: for<'r> SeekableBackwardsInput<'i, 'r, ApproxSpanRecorder<'s, S>, BLOCK_SIZE>,
         S: Sink<MatchSpan>,
@@ -176,11 +176,11 @@ impl Engine for MainEngine<'_> {
     }
 
     #[inline]
-    fn matches<'i, 's, I, B, S>(&self, input: &'i I, sink: &'s mut S) -> Result<(), EngineError>
+    fn matches<'i, 's, I, B, S>(&'i self, input: &'i I, sink: &'s mut S) -> Result<(), EngineError>
     where
-        I: for<'r> SeekableBackwardsInput<'i, 'r, NodesRecorder<'s, B, S>, BLOCK_SIZE>,
-        B: Deref<Target = [u8]>,
-        S: Sink<Match>,
+        I: for<'r> SeekableBackwardsInput<'i, 'r, NodesRecorder<'s, B, S>, BLOCK_SIZE, Block=B>,
+        B: crate::input::InputBlock<'i, BLOCK_SIZE>,
+        S: Sink<Match>
     {
         if self.automaton.is_select_root_query() {
             return select_root_query::match_(input, sink);

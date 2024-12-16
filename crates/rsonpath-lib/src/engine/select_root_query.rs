@@ -91,8 +91,8 @@ where
 /// Match for an empty query &ndash; copy the entire document, trimming whitespace.
 pub(super) fn match_<'i, 's, I, B, S>(input: &'i I, sink: &'s mut S) -> Result<(), EngineError>
 where
-    I: for<'r> Input<'i, 'r, NodesRecorder<'s, B, S>, BLOCK_SIZE>,
-    B: Deref<Target = [u8]>,
+    I: for<'r> Input<'i, 'r, NodesRecorder<'s, B, S>, BLOCK_SIZE, Block=B>,
+    B: crate::input::InputBlock<'i, BLOCK_SIZE>,
     S: Sink<Match>,
 {
     // For a full match we need to copy the entire input starting from first non-whitespace,

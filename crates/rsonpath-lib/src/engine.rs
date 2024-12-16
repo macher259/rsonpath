@@ -9,14 +9,13 @@ pub mod main;
 mod tail_skipping;
 
 pub use main::MainEngine as RsonpathEngine;
-use std::ops::Deref;
 mod select_root_query;
 
 use self::error::EngineError;
 use crate::result::approx_span::ApproxSpanRecorder;
 use crate::result::index::IndexRecorder;
 use crate::result::nodes::NodesRecorder;
-use crate::result::{count::CountRecorder, InputRecorder};
+use crate::result::count::CountRecorder;
 use crate::{
     automaton::{error::CompilerError, Automaton},
     input::Input,
@@ -40,7 +39,7 @@ pub trait Engine {
     /// Some glaring errors like mismatched braces or double quotes are raised,
     /// but in general **the result of an engine run on an invalid JSON is undefined**.
     /// It _is_ guaranteed that the computation terminates and does not panic.
-    fn count<'i, I>(&self, input: &'i I) -> Result<MatchCount, EngineError>
+    fn count<'i, I>(&'i self, input: &'i I) -> Result<MatchCount, EngineError>
     where
         I: for<'r> SeekableBackwardsInput<'i, 'r, CountRecorder, BLOCK_SIZE>;
 
@@ -58,7 +57,7 @@ pub trait Engine {
     /// Some glaring errors like mismatched braces or double quotes are raised,
     /// but in general **the result of an engine run on an invalid JSON is undefined**.
     /// It _is_ guaranteed that the computation terminates and does not panic.
-    fn indices<'i, 's, I, S>(&self, input: &'i I, sink: &'s mut S) -> Result<(), EngineError>
+    fn indices<'i, 's, I, S>(&'i self, input: &'i I, sink: &'s mut S) -> Result<(), EngineError>
     where
         I: for<'r> SeekableBackwardsInput<'i, 'r, IndexRecorder<'s, S>, BLOCK_SIZE>,
         S: Sink<MatchIndex>;
@@ -83,7 +82,7 @@ pub trait Engine {
     /// Some glaring errors like mismatched braces or double quotes are raised,
     /// but in general **the result of an engine run on an invalid JSON is undefined**.
     /// It _is_ guaranteed that the computation terminates and does not panic.
-    fn approximate_spans<'i, 's, I, S>(&self, input: &'i I, sink: &'s mut S) -> Result<(), EngineError>
+    fn approximate_spans<'i, 's, I, S>(&'i self, input: &'i I, sink: &'s mut S) -> Result<(), EngineError>
     where
         I: for<'r> SeekableBackwardsInput<'i, 'r, ApproxSpanRecorder<'s, S>, BLOCK_SIZE>,
         S: Sink<MatchSpan>;
@@ -98,10 +97,10 @@ pub trait Engine {
     /// Some glaring errors like mismatched braces or double quotes are raised,
     /// but in general **the result of an engine run on an invalid JSON is undefined**.
     /// It _is_ guaranteed that the computation terminates and does not panic.
-    fn matches<'i, 's, I, B, S>(&self, input: &'i I, sink: &'s mut S) -> Result<(), EngineError>
+    fn matches<'i, 's, I, B, S>(&'i self, input: &'i I, sink: &'s mut S) -> Result<(), EngineError>
     where
-        I: for<'r> SeekableBackwardsInput<'i, 'r, NodesRecorder<'s, I::Block, S>, BLOCK_SIZE>,
-        B: Deref<Target = [u8]>,
+        I: for<'r> SeekableBackwardsInput<'i, 'r, NodesRecorder<'s, B, S>, BLOCK_SIZE, Block=B>,
+        B: crate::input::InputBlock<'i, BLOCK_SIZE>,
         S: Sink<Match>;
 }
 
