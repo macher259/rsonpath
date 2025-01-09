@@ -144,7 +144,6 @@ pub trait Input: Sized {
 /// Helper trait defining the ability to seek backwards in the [`Input`],
 /// separated from main trait to allow for streaming implementations.
 pub trait BackwardSeekable {
-
     /// Search for an occurrence of `needle` in the input,
     /// starting from `from` and looking back. Returns the index
     /// of the first occurrence or `None` if the `needle` was not found.

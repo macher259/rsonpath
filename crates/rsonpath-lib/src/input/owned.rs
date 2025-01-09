@@ -17,7 +17,13 @@
 // that achieves the API of both, taking either ownership or a borrow, but this leads to
 // lifetime issues around the current padding impl.
 
-use super::{align_to, borrowed::BorrowedBytesBlockIterator, error::Infallible, padding::{PaddedBlock, TwoSidesPaddedInput}, BackwardSeekable, Input, SliceSeekable, MAX_BLOCK_SIZE};
+use super::{
+    align_to,
+    borrowed::BorrowedBytesBlockIterator,
+    error::Infallible,
+    padding::{PaddedBlock, TwoSidesPaddedInput},
+    BackwardSeekable, Input, SliceSeekable, MAX_BLOCK_SIZE,
+};
 use crate::result::InputRecorder;
 use rsonpath_syntax::str::JsonString;
 use std::borrow::Borrow;
@@ -74,14 +80,16 @@ impl<B> Input for OwnedBytes<B>
 where
     B: Borrow<[u8]>,
 {
-    type BlockIterator<'i, 'r, R, const N: usize> = BorrowedBytesBlockIterator<'r, TwoSidesPaddedInput<'i>, R, N>
+    type BlockIterator<'i, 'r, R, const N: usize>
+        = BorrowedBytesBlockIterator<'r, TwoSidesPaddedInput<'i>, R, N>
     where
         Self: 'i,
         R: InputRecorder<Self::Block<'i, N>> + 'r;
 
     type Error = Infallible;
 
-    type Block<'i, const N: usize> = &'i [u8]
+    type Block<'i, const N: usize>
+        = &'i [u8]
     where
         Self: 'i;
 

@@ -5,6 +5,7 @@ use crate::{
 };
 use eyre::{Result, WrapErr};
 use log::warn;
+use rsonpath_lib::input::BackwardSeekable;
 use rsonpath_lib::{
     automaton::Automaton,
     engine::{error::EngineError, main::MainEngine, Compiler, Engine},
@@ -16,7 +17,6 @@ use std::{
     io::{self, Read},
     path::Path,
 };
-use rsonpath_lib::input::BackwardSeekable;
 
 pub struct Runner<'q, S> {
     pub with_compiled_query: Automaton<'q>,
@@ -147,7 +147,11 @@ impl<S: AsRef<str>> ResolvedInput<S> {
 
 impl ResolvedOutput {
     fn run_and_output<E: Engine, I: Input + BackwardSeekable>(self, engine: E, input: I) -> Result<()> {
-        fn run_impl<E: Engine, I: Input + BackwardSeekable>(out: ResolvedOutput, engine: E, input: I) -> Result<(), EngineError> {
+        fn run_impl<E: Engine, I: Input + BackwardSeekable>(
+            out: ResolvedOutput,
+            engine: E,
+            input: I,
+        ) -> Result<(), EngineError> {
             match out {
                 ResolvedOutput::Count => {
                     let result = engine.count(&input)?;

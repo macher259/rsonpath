@@ -15,7 +15,12 @@
 //! by an order of magnitude to execute the query on a memory map than it is to simply read the
 //! file into main memory.
 
-use super::{borrowed::BorrowedBytesBlockIterator, error::{Infallible, InputError}, padding::PaddedBlock, BackwardSeekable, Input, SliceSeekable, MAX_BLOCK_SIZE};
+use super::{
+    borrowed::BorrowedBytesBlockIterator,
+    error::{Infallible, InputError},
+    padding::PaddedBlock,
+    BackwardSeekable, Input, SliceSeekable, MAX_BLOCK_SIZE,
+};
 use crate::{input::padding::EndPaddedInput, result::InputRecorder};
 use memmap2::{Mmap, MmapAsRawDesc};
 use rsonpath_syntax::str::JsonString;
@@ -61,7 +66,8 @@ impl MmapInput {
 }
 
 impl Input for MmapInput {
-    type BlockIterator<'a, 'r, R, const N: usize> = BorrowedBytesBlockIterator<'r, EndPaddedInput<'a>, R, N>
+    type BlockIterator<'a, 'r, R, const N: usize>
+        = BorrowedBytesBlockIterator<'r, EndPaddedInput<'a>, R, N>
     where
         R: InputRecorder<&'a [u8]> + 'r;
 

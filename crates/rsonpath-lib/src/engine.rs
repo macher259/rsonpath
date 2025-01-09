@@ -11,13 +11,13 @@ pub use main::MainEngine as RsonpathEngine;
 mod select_root_query;
 
 use self::error::EngineError;
+use crate::input::BackwardSeekable;
 use crate::{
     automaton::{error::CompilerError, Automaton},
     input::Input,
     result::{Match, MatchCount, MatchIndex, MatchSpan, Sink},
 };
 use rsonpath_syntax::JsonPathQuery;
-use crate::input::BackwardSeekable;
 
 /// An engine that can run its query on a given input.
 pub trait Engine {

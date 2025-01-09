@@ -39,6 +39,7 @@
  */
 
 #![allow(clippy::type_complexity)] // The private Classifier type is very complex, but we specifically macro it out.
+use crate::input::BackwardSeekable;
 use crate::{
     automaton::{error::CompilerError, Automaton, State},
     classification::{
@@ -63,7 +64,6 @@ use crate::{
 };
 use rsonpath_syntax::{num::JsonUInt, str::JsonString, JsonPathQuery};
 use smallvec::{smallvec, SmallVec};
-use crate::input::BackwardSeekable;
 
 /// Main engine for a fixed JSONPath query.
 ///

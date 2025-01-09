@@ -12,7 +12,12 @@
 //! It is on par with [`OwnedBytes`](`super::OwnedBytes`), but doesn't take ownership
 //! of the bytes.
 
-use super::{align_to, error::Infallible, padding::{EndPaddedInput, PaddedBlock, TwoSidesPaddedInput}, BackwardSeekable, Input, InputBlockIterator, SliceSeekable, MAX_BLOCK_SIZE};
+use super::{
+    align_to,
+    error::Infallible,
+    padding::{EndPaddedInput, PaddedBlock, TwoSidesPaddedInput},
+    BackwardSeekable, Input, InputBlockIterator, SliceSeekable, MAX_BLOCK_SIZE,
+};
 use crate::{debug, result::InputRecorder};
 use rsonpath_syntax::str::JsonString;
 
@@ -84,12 +89,17 @@ where
 }
 
 impl Input for BorrowedBytes<'_> {
-    type BlockIterator<'b, 'r, R, const N: usize> = BorrowedBytesBlockIterator<'r, TwoSidesPaddedInput<'b>, R, N>
-    where Self: 'b,
-          R: InputRecorder<&'b [u8]> + 'r;
+    type BlockIterator<'b, 'r, R, const N: usize>
+        = BorrowedBytesBlockIterator<'r, TwoSidesPaddedInput<'b>, R, N>
+    where
+        Self: 'b,
+        R: InputRecorder<&'b [u8]> + 'r;
 
     type Error = Infallible;
-    type Block<'b, const N: usize> = &'b [u8] where Self: 'b;
+    type Block<'b, const N: usize>
+        = &'b [u8]
+    where
+        Self: 'b;
 
     #[inline(always)]
     fn leading_padding_len(&self) -> usize {

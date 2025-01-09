@@ -16,7 +16,10 @@
 //! use the [`with_capacity`](`BufferedInput::with_capacity`) function to avoid
 //! reallocating the internal buffers.
 
-use super::{error::InputError, repr_align_block_size, BackwardSeekable, Input, InputBlock, InputBlockIterator, SliceSeekable, MAX_BLOCK_SIZE};
+use super::{
+    error::InputError, repr_align_block_size, BackwardSeekable, Input, InputBlock, InputBlockIterator, SliceSeekable,
+    MAX_BLOCK_SIZE,
+};
 use crate::{error::InternalRsonpathError, result::InputRecorder, JSON_SPACE_BYTE};
 use rsonpath_syntax::str::JsonString;
 use std::{cell::RefCell, io::Read, ops::Deref, slice};
@@ -129,12 +132,17 @@ impl<R: Read> BufferedInput<R> {
 }
 
 impl<R: Read> Input for BufferedInput<R> {
-    type BlockIterator<'a, 'r, IR, const N: usize> = BufferedInputBlockIterator<'a, 'r, R, IR, N>
-        where Self: 'a,
-              IR: InputRecorder<BufferedInputBlock<N>> + 'r;
+    type BlockIterator<'a, 'r, IR, const N: usize>
+        = BufferedInputBlockIterator<'a, 'r, R, IR, N>
+    where
+        Self: 'a,
+        IR: InputRecorder<BufferedInputBlock<N>> + 'r;
 
     type Error = InputError;
-    type Block<'a, const N: usize> = BufferedInputBlock<N> where Self: 'a;
+    type Block<'a, const N: usize>
+        = BufferedInputBlock<N>
+    where
+        Self: 'a;
 
     #[inline(always)]
     fn leading_padding_len(&self) -> usize {
