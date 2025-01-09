@@ -17,13 +17,7 @@
 // that achieves the API of both, taking either ownership or a borrow, but this leads to
 // lifetime issues around the current padding impl.
 
-use super::{
-    align_to,
-    borrowed::BorrowedBytesBlockIterator,
-    error::Infallible,
-    padding::{PaddedBlock, TwoSidesPaddedInput},
-    Input, SliceSeekable, MAX_BLOCK_SIZE,
-};
+use super::{align_to, borrowed::BorrowedBytesBlockIterator, error::Infallible, padding::{PaddedBlock, TwoSidesPaddedInput}, BackwardSeekable, Input, SliceSeekable, MAX_BLOCK_SIZE};
 use crate::result::InputRecorder;
 use rsonpath_syntax::str::JsonString;
 use std::borrow::Borrow;
@@ -115,14 +109,6 @@ where
     }
 
     #[inline]
-    fn seek_backward(&self, from: usize, needle: u8) -> Option<usize> {
-        let offset = self.leading_padding_len();
-        let from = from.checked_sub(offset)?;
-
-        self.bytes.borrow().seek_backward(from, needle).map(|x| x + offset)
-    }
-
-    #[inline]
     fn seek_forward<const N: usize>(&self, from: usize, needles: [u8; N]) -> Result<Option<(usize, u8)>, Self::Error> {
         let offset = self.leading_padding_len();
         let from = from.saturating_sub(offset);
@@ -147,6 +133,26 @@ where
     }
 
     #[inline]
+    fn is_member_match(&self, from: usize, to: usize, member: &JsonString) -> Result<bool, Self::Error> {
+        let offset = self.leading_padding_len();
+        let Some(from) = from.checked_sub(offset) else {
+            return Ok(false);
+        };
+
+        Ok(self.bytes.borrow().is_member_match(from, to - offset, member))
+    }
+}
+
+impl<B: Borrow<[u8]>> BackwardSeekable for OwnedBytes<B> {
+    #[inline]
+    fn seek_backward(&self, from: usize, needle: u8) -> Option<usize> {
+        let offset = self.leading_padding_len();
+        let from = from.checked_sub(offset)?;
+
+        self.bytes.borrow().seek_backward(from, needle).map(|x| x + offset)
+    }
+
+    #[inline]
     fn seek_non_whitespace_backward(&self, from: usize) -> Option<(usize, u8)> {
         let offset = self.leading_padding_len();
         let from = from.checked_sub(offset)?;
@@ -155,15 +161,5 @@ where
             .borrow()
             .seek_non_whitespace_backward(from)
             .map(|(x, y)| (x + self.leading_padding_len(), y))
-    }
-
-    #[inline]
-    fn is_member_match(&self, from: usize, to: usize, member: &JsonString) -> Result<bool, Self::Error> {
-        let offset = self.leading_padding_len();
-        let Some(from) = from.checked_sub(offset) else {
-            return Ok(false);
-        };
-
-        Ok(self.bytes.borrow().is_member_match(from, to - offset, member))
     }
 }
