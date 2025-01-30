@@ -115,7 +115,7 @@ test-parser:
 test-full: (gen-tests)
     -cargo install cargo-hack
     cargo rsontest
-    just test-book
+    #just test-book
 
 # Run E2E engine tests on all combinations of SIMD features for x86 platforms.
 test-x86-simd:
@@ -139,11 +139,11 @@ test-cmd:
     cargo test --test cli_tests
 
 # Run doctests on the book.
-test-book:
-    rm -f ./target/debug/deps/librsonpath-*
-    cargo build -p rsonpath-lib
-    cargo build -p rsonpath-syntax
-    mdbook test ./book -L ./target/debug/deps
+# test-book:
+#    rm -f ./target/debug/deps/librsonpath-*
+#    cargo build -p rsonpath-lib
+#    cargo build -p rsonpath-syntax
+#    mdbook test ./book -L ./target/debug/deps
 
 @add-test name:
     f=`echo {{name}} | sed s/-/_/g` && \

@@ -9,22 +9,22 @@ pub(super) mod vector_256;
 
 #[allow(unused_macros)]
 macro_rules! structural_classifier {
-    ($name:ident, $core:ident, $mask_mod:ident, $size:literal, $mask_ty:ty) => {
+    ($name:ident, $core:ident, $mask_mod:ident, $mask_ty:ty) => {
         pub(crate) struct Constructor;
 
         impl StructuralImpl for Constructor {
             type Classifier<'i, I, Q>
                 = $name<'i, I, Q>
             where
-                I: InputBlockIterator<'i, BLOCK_SIZE>,
-                Q: QuoteClassifiedIterator<'i, I, MaskType, BLOCK_SIZE>;
+                I: InputBlockIterator<'i>,
+                Q: QuoteClassifiedIterator<'i, I, MaskType>;
 
             #[inline]
             #[allow(dead_code)]
             fn new<'i, I, Q>(iter: Q) -> Self::Classifier<'i, I, Q>
             where
-                I: InputBlockIterator<'i, BLOCK_SIZE>,
-                Q: QuoteClassifiedIterator<'i, I, MaskType, BLOCK_SIZE>,
+                I: InputBlockIterator<'i>,
+                Q: QuoteClassifiedIterator<'i, I, MaskType>,
             {
                 Self::Classifier {
                     iter,
@@ -38,7 +38,7 @@ macro_rules! structural_classifier {
 
         pub(crate) struct $name<'a, I, Q>
         where
-            I: InputBlockIterator<'a, $size>,
+            I: InputBlockIterator<'a>,
         {
             iter: Q,
             classifier: $core,
@@ -47,7 +47,7 @@ macro_rules! structural_classifier {
             are_colons_on: bool,
         }
 
-        impl<'a, I: InputBlockIterator<'a, $size>, Q: QuoteClassifiedIterator<'a, I, $mask_ty, $size>> $name<'a, I, Q> {
+        impl<'a, I: InputBlockIterator<'a>, Q: QuoteClassifiedIterator<'a, I, $mask_ty>> $name<'a, I, Q> {
             #[inline(always)]
             fn current_block_is_spent(&self) -> bool {
                 self.block
@@ -60,7 +60,7 @@ macro_rules! structural_classifier {
                 if let Some(block) = self.block.take() {
                     let quote_classified_block = block.quote_classified;
                     let relevant_idx = idx + 1;
-                    let block_idx = (idx + 1) % $size;
+                    let block_idx = (idx + 1) % BLOCK_SIZE;
                     debug!("relevant_idx is {relevant_idx}.");
 
                     if block_idx != 0 || relevant_idx == self.iter.get_offset() {
@@ -78,8 +78,8 @@ macro_rules! structural_classifier {
 
         impl<'a, I, Q> FallibleIterator for $name<'a, I, Q>
         where
-            I: InputBlockIterator<'a, $size>,
-            Q: QuoteClassifiedIterator<'a, I, $mask_ty, $size>,
+            I: InputBlockIterator<'a>,
+            Q: QuoteClassifiedIterator<'a, I, $mask_ty>,
         {
             type Item = Structural;
             type Error = InputError;
@@ -107,10 +107,10 @@ macro_rules! structural_classifier {
             }
         }
 
-        impl<'a, I, Q> StructuralIterator<'a, I, Q, $mask_ty, $size> for $name<'a, I, Q>
+        impl<'a, I, Q> StructuralIterator<'a, I, Q, $mask_ty> for $name<'a, I, Q>
         where
-            I: InputBlockIterator<'a, $size>,
-            Q: QuoteClassifiedIterator<'a, I, $mask_ty, $size>,
+            I: InputBlockIterator<'a>,
+            Q: QuoteClassifiedIterator<'a, I, $mask_ty>,
         {
             #[inline(always)]
             fn turn_colons_and_commas_on(&mut self, idx: usize) {
@@ -189,7 +189,7 @@ macro_rules! structural_classifier {
             }
 
             #[inline(always)]
-            fn stop(self) -> ResumeClassifierState<'a, I, Q, $mask_ty, $size> {
+            fn stop(self) -> ResumeClassifierState<'a, I, Q, $mask_ty> {
                 let block = self.block.map(|b| ResumeClassifierBlockState {
                     idx: b.get_idx() as usize,
                     block: b.quote_classified,
@@ -204,7 +204,7 @@ macro_rules! structural_classifier {
             }
 
             #[inline(always)]
-            fn resume(state: ResumeClassifierState<'a, I, Q, $mask_ty, $size>) -> Self {
+            fn resume(state: ResumeClassifierState<'a, I, Q, $mask_ty>) -> Self {
                 let mut classifier = $core::new();
 
                 // SAFETY: target_feature invariant
@@ -244,3 +244,4 @@ macro_rules! structural_classifier {
 
 #[allow(unused_imports)]
 pub(crate) use structural_classifier;
+use crate::BLOCK_SIZE;

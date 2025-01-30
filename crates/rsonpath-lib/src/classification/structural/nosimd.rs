@@ -6,17 +6,17 @@ pub(crate) struct Constructor;
 
 impl StructuralImpl for Constructor {
     type Classifier<'i, I, Q>
-        = SequentialClassifier<'i, I, Q, BLOCK_SIZE>
+        = SequentialClassifier<'i, I, Q>
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>,
-        Q: QuoteClassifiedIterator<'i, I, MaskType, BLOCK_SIZE>;
+        I: InputBlockIterator<'i>,
+        Q: QuoteClassifiedIterator<'i, I, MaskType>;
 
     #[inline(always)]
     #[allow(dead_code)]
     fn new<'i, I, Q>(iter: Q) -> Self::Classifier<'i, I, Q>
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>,
-        Q: QuoteClassifiedIterator<'i, I, MaskType, BLOCK_SIZE>,
+        I: InputBlockIterator<'i>,
+        Q: QuoteClassifiedIterator<'i, I, MaskType>,
     {
         Self::Classifier {
             iter,
@@ -27,22 +27,22 @@ impl StructuralImpl for Constructor {
     }
 }
 
-struct Block<'i, I, const N: usize>
+struct Block<'i, I>
 where
-    I: InputBlockIterator<'i, N>,
+    I: InputBlockIterator<'i>,
 {
-    quote_classified: QuoteClassifiedBlock<I::Block, MaskType, N>,
+    quote_classified: QuoteClassifiedBlock<I::Block, MaskType>,
     idx: usize,
     are_colons_on: bool,
     are_commas_on: bool,
 }
 
-impl<'i, I, const N: usize> Block<'i, I, N>
+impl<'i, I> Block<'i, I>
 where
-    I: InputBlockIterator<'i, N>,
+    I: InputBlockIterator<'i>,
 {
     fn new(
-        quote_classified_block: QuoteClassifiedBlock<I::Block, MaskType, N>,
+        quote_classified_block: QuoteClassifiedBlock<I::Block, MaskType>,
         are_colons_on: bool,
         are_commas_on: bool,
     ) -> Self {
@@ -55,7 +55,7 @@ where
     }
 
     fn from_idx(
-        quote_classified_block: QuoteClassifiedBlock<I::Block, MaskType, N>,
+        quote_classified_block: QuoteClassifiedBlock<I::Block, MaskType>,
         idx: usize,
         are_colons_on: bool,
         are_commas_on: bool,
@@ -69,9 +69,9 @@ where
     }
 }
 
-impl<'i, I, const N: usize> Iterator for Block<'i, I, N>
+impl<'i, I> Iterator for Block<'i, I>
 where
-    I: InputBlockIterator<'i, N>,
+    I: InputBlockIterator<'i>,
 {
     type Item = Structural;
 
@@ -103,27 +103,27 @@ where
     }
 }
 
-pub(crate) struct SequentialClassifier<'i, I, Q, const N: usize>
+pub(crate) struct SequentialClassifier<'i, I, Q>
 where
-    I: InputBlockIterator<'i, N>,
+    I: InputBlockIterator<'i>,
 {
     iter: Q,
-    block: Option<Block<'i, I, N>>,
+    block: Option<Block<'i, I>>,
     are_colons_on: bool,
     are_commas_on: bool,
 }
 
-impl<'i, I, Q, const N: usize> SequentialClassifier<'i, I, Q, N>
+impl<'i, I, Q> SequentialClassifier<'i, I, Q>
 where
-    I: InputBlockIterator<'i, N>,
-    Q: QuoteClassifiedIterator<'i, I, MaskType, N>,
+    I: InputBlockIterator<'i>,
+    Q: QuoteClassifiedIterator<'i, I, MaskType>,
 {
     #[inline]
     fn reclassify(&mut self, idx: usize) {
         if let Some(block) = self.block.take() {
             let quote_classified_block = block.quote_classified;
             let relevant_idx = idx + 1;
-            let block_idx = (idx + 1) % N;
+            let block_idx = (idx + 1) % BLOCK_SIZE;
             debug!("relevant_idx is {relevant_idx}.");
 
             if block_idx != 0 || relevant_idx == self.iter.get_offset() {
@@ -139,10 +139,10 @@ where
     }
 }
 
-impl<'i, I, Q, const N: usize> FallibleIterator for SequentialClassifier<'i, I, Q, N>
+impl<'i, I, Q> FallibleIterator for SequentialClassifier<'i, I, Q>
 where
-    I: InputBlockIterator<'i, N>,
-    Q: QuoteClassifiedIterator<'i, I, MaskType, N>,
+    I: InputBlockIterator<'i>,
+    Q: QuoteClassifiedIterator<'i, I, MaskType>,
 {
     type Item = Structural;
     type Error = InputError;
@@ -166,10 +166,10 @@ where
     }
 }
 
-impl<'i, I, Q, const N: usize> StructuralIterator<'i, I, Q, MaskType, N> for SequentialClassifier<'i, I, Q, N>
+impl<'i, I, Q> StructuralIterator<'i, I, Q, MaskType> for SequentialClassifier<'i, I, Q>
 where
-    I: InputBlockIterator<'i, N>,
-    Q: QuoteClassifiedIterator<'i, I, MaskType, N>,
+    I: InputBlockIterator<'i>,
+    Q: QuoteClassifiedIterator<'i, I, MaskType>,
 {
     fn turn_colons_and_commas_on(&mut self, idx: usize) {
         if !self.are_commas_on && !self.are_colons_on {
@@ -225,7 +225,7 @@ where
         debug!("Turning colons off.");
     }
 
-    fn stop(self) -> ResumeClassifierState<'i, I, Q, MaskType, N> {
+    fn stop(self) -> ResumeClassifierState<'i, I, Q, MaskType> {
         let block = self.block.map(|b| ResumeClassifierBlockState {
             block: b.quote_classified,
             idx: b.idx,
@@ -238,7 +238,7 @@ where
         }
     }
 
-    fn resume(state: ResumeClassifierState<'i, I, Q, MaskType, N>) -> Self {
+    fn resume(state: ResumeClassifierState<'i, I, Q, MaskType>) -> Self {
         Self {
             iter: state.iter,
             block: state.block.map(|b| Block {

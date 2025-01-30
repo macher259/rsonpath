@@ -128,7 +128,6 @@ fn does_parser_support(tags: &[Tag]) -> bool {
     fn single(tag: &Tag) -> bool {
         match tag {
             Tag::Basic
-            | Tag::Filter
             | Tag::MultipleSelectors
             | Tag::IndexingFromEnd
             | Tag::BackwardStep
@@ -145,7 +144,6 @@ fn does_engine_support(tags: &[Tag]) -> bool {
     fn single(tag: &Tag) -> bool {
         match tag {
             Tag::Basic => true,
-            Tag::Filter
             | Tag::Function
             | Tag::MultipleSelectors
             | Tag::IndexingFromEnd

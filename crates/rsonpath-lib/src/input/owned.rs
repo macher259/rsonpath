@@ -80,15 +80,15 @@ impl<B> Input for OwnedBytes<B>
 where
     B: Borrow<[u8]>,
 {
-    type BlockIterator<'i, 'r, R, const N: usize>
-        = BorrowedBytesBlockIterator<'r, TwoSidesPaddedInput<'i>, R, N>
+    type BlockIterator<'i, 'r, R>
+        = BorrowedBytesBlockIterator<'r, TwoSidesPaddedInput<'i>, R>
     where
         Self: 'i,
-        R: InputRecorder<Self::Block<'i, N>> + 'r;
+        R: InputRecorder<Self::Block<'i>> + 'r;
 
     type Error = Infallible;
 
-    type Block<'i, const N: usize>
+    type Block<'i>
         = &'i [u8]
     where
         Self: 'i;
@@ -104,9 +104,9 @@ where
     }
 
     #[inline]
-    fn iter_blocks<'i, 'r, R, const N: usize>(&'i self, recorder: &'r R) -> Self::BlockIterator<'i, 'r, R, N>
+    fn iter_blocks<'i, 'r, R>(&'i self, recorder: &'r R) -> Self::BlockIterator<'i, 'r, R>
     where
-        R: InputRecorder<Self::Block<'i, N>>,
+        R: InputRecorder<Self::Block<'i>>,
     {
         let (_, middle, _) = align_to::<MAX_BLOCK_SIZE>(self.bytes.borrow());
         assert_eq!(middle.len(), self.middle_len);

@@ -59,7 +59,7 @@ where
             Some(end_idx) => end_idx, // Known length, just take it.
             None => {
                 // Unknown length, iterate and count.
-                let mut iter = input.iter_blocks::<_, BLOCK_SIZE>(&EmptyRecorder);
+                let mut iter = input.iter_blocks::<_>(&EmptyRecorder);
                 let mut end_idx = 0;
 
                 while (iter.next().e()?).is_some() {
@@ -89,7 +89,7 @@ where
     // For a full match we need to copy the entire input starting from first non-whitespace,
     // and then trim the whitespace from the end. This might be slow if the document is excessively
     // padded with whitespace at start and/or end, but that's a pathological case.
-    let mut iter = input.iter_blocks::<_, BLOCK_SIZE>(&EmptyRecorder);
+    let mut iter = input.iter_blocks::<_>(&EmptyRecorder);
     let mut res: Vec<u8> = vec![];
     let mut first_significant_idx = None;
     let mut offset = 0;

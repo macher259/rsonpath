@@ -28,14 +28,14 @@ use quotes::{QuoteClassifiedBlock, QuoteClassifiedIterator};
 
 /// State allowing resumption of a classifier from a particular place
 /// in the input along with the stopped [`QuoteClassifiedIterator`].
-pub struct ResumeClassifierState<'i, I, Q, M, const N: usize>
+pub struct ResumeClassifierState<'i, I, Q, M>
 where
-    I: InputBlockIterator<'i, N>,
+    I: InputBlockIterator<'i>,
 {
     /// The stopped iterator.
     pub iter: Q,
     /// The block at which classification was stopped.
-    pub block: Option<ResumeClassifierBlockState<'i, I, M, N>>,
+    pub block: Option<ResumeClassifierBlockState<'i, I, M>>,
     /// Was comma classification turned on when the classification was stopped.
     pub are_commas_on: bool,
     /// Was colon classification turned on when the classification was stopped.
@@ -43,20 +43,20 @@ where
 }
 
 /// State of the block at which classification was stopped.
-pub struct ResumeClassifierBlockState<'i, I, M, const N: usize>
+pub struct ResumeClassifierBlockState<'i, I, M>
 where
-    I: InputBlockIterator<'i, N>,
+    I: InputBlockIterator<'i>,
 {
     /// Quote classified information about the block.
-    pub block: QuoteClassifiedBlock<I::Block, M, N>,
+    pub block: QuoteClassifiedBlock<I::Block, M>,
     /// The index at which classification was stopped.
     pub idx: usize,
 }
 
-impl<'i, I, Q, M, const N: usize> ResumeClassifierState<'i, I, Q, M, N>
+impl<'i, I, Q, M> ResumeClassifierState<'i, I, Q, M>
 where
-    I: InputBlockIterator<'i, N>,
-    Q: QuoteClassifiedIterator<'i, I, M, N>,
+    I: InputBlockIterator<'i>,
+    Q: QuoteClassifiedIterator<'i, I, M>,
 {
     /// Get the index in the original bytes input at which classification has stopped.
     #[inline(always)]

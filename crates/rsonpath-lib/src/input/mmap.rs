@@ -66,13 +66,13 @@ impl MmapInput {
 }
 
 impl Input for MmapInput {
-    type BlockIterator<'a, 'r, R, const N: usize>
-        = BorrowedBytesBlockIterator<'r, EndPaddedInput<'a>, R, N>
+    type BlockIterator<'a, 'r, R>
+        = BorrowedBytesBlockIterator<'r, EndPaddedInput<'a>, R>
     where
         R: InputRecorder<&'a [u8]> + 'r;
 
     type Error = Infallible;
-    type Block<'a, const N: usize> = &'a [u8];
+    type Block<'a> = &'a [u8];
 
     #[inline(always)]
     fn leading_padding_len(&self) -> usize {
@@ -90,7 +90,7 @@ impl Input for MmapInput {
     }
 
     #[inline(always)]
-    fn iter_blocks<'a, 'r, R, const N: usize>(&'a self, recorder: &'r R) -> Self::BlockIterator<'a, 'r, R, N>
+    fn iter_blocks<'a, 'r, R>(&'a self, recorder: &'r R) -> Self::BlockIterator<'a, 'r, R>
     where
         R: InputRecorder<&'a [u8]>,
     {

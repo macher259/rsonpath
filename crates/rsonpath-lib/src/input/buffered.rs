@@ -20,7 +20,7 @@ use super::{
     error::InputError, repr_align_block_size, BackwardSeekable, Input, InputBlock, InputBlockIterator, SliceSeekable,
     MAX_BLOCK_SIZE,
 };
-use crate::{error::InternalRsonpathError, result::InputRecorder, JSON_SPACE_BYTE};
+use crate::{error::InternalRsonpathError, result::InputRecorder, BLOCK_SIZE, JSON_SPACE_BYTE};
 use rsonpath_syntax::str::JsonString;
 use std::{cell::RefCell, io::Read, ops::Deref, slice};
 
@@ -49,14 +49,15 @@ repr_align_block_size! {
 }
 
 /// Iterator over a [`BufferedInput`].
-pub struct BufferedInputBlockIterator<'a, 'r, R, IR, const N: usize> {
+pub struct BufferedInputBlockIterator<'a, 'r, R, IR> {
     input: &'a BufferedInput<R>,
     idx: usize,
     recorder: &'r IR,
 }
 
 /// Block returned from a [`BufferedInputBlockIterator`].
-pub struct BufferedInputBlock<const N: usize>([u8; N]);
+#[derive(Clone)]
+pub struct BufferedInputBlock([u8; BLOCK_SIZE]);
 
 impl<R: Read> InternalBuffer<R> {
     fn as_slice(&self) -> &[u8] {
@@ -132,15 +133,15 @@ impl<R: Read> BufferedInput<R> {
 }
 
 impl<R: Read> Input for BufferedInput<R> {
-    type BlockIterator<'a, 'r, IR, const N: usize>
-        = BufferedInputBlockIterator<'a, 'r, R, IR, N>
+    type BlockIterator<'a, 'r, IR>
+        = BufferedInputBlockIterator<'a, 'r, R, IR>
     where
         Self: 'a,
-        IR: InputRecorder<BufferedInputBlock<N>> + 'r;
+        IR: InputRecorder<BufferedInputBlock> + 'r;
 
     type Error = InputError;
-    type Block<'a, const N: usize>
-        = BufferedInputBlock<N>
+    type Block<'a>
+        = BufferedInputBlock
     where
         Self: 'a;
 
@@ -160,9 +161,9 @@ impl<R: Read> Input for BufferedInput<R> {
     }
 
     #[inline(always)]
-    fn iter_blocks<'i, 'r, IR, const N: usize>(&'i self, recorder: &'r IR) -> Self::BlockIterator<'i, 'r, IR, N>
+    fn iter_blocks<'i, 'r, IR>(&'i self, recorder: &'r IR) -> Self::BlockIterator<'i, 'r, IR>
     where
-        IR: InputRecorder<Self::Block<'i, N>>,
+        IR: InputRecorder<Self::Block<'i>>,
     {
         BufferedInputBlockIterator {
             input: self,
@@ -237,23 +238,23 @@ impl<R: Read> BackwardSeekable for BufferedInput<R> {
     }
 }
 
-impl<'a, R: Read, IR, const N: usize> InputBlockIterator<'a, N> for BufferedInputBlockIterator<'a, '_, R, IR, N>
+impl<'a, R: Read, IR> InputBlockIterator<'a> for BufferedInputBlockIterator<'a, '_, R, IR>
 where
-    IR: InputRecorder<BufferedInputBlock<N>>,
+    IR: InputRecorder<BufferedInputBlock>,
 {
-    type Block = BufferedInputBlock<N>;
+    type Block = BufferedInputBlock;
     type Error = InputError;
 
     #[inline]
     fn next(&mut self) -> Result<Option<Self::Block>, Self::Error> {
         let buf = self.input.0.borrow();
 
-        if self.idx + N <= buf.len() {
-            let slice = &buf.as_slice()[self.idx..self.idx + N];
-            let block: [u8; N] = slice
+        if self.idx + BLOCK_SIZE <= buf.len() {
+            let slice = &buf.as_slice()[self.idx..self.idx + BLOCK_SIZE];
+            let block: [u8; BLOCK_SIZE] = slice
                 .try_into()
                 .map_err(|err| InternalRsonpathError::from_error(err, "slice of size N is not of size N"))?;
-            self.idx += N;
+            self.idx += BLOCK_SIZE;
 
             self.recorder.record_block_start(BufferedInputBlock(block));
 
@@ -274,7 +275,7 @@ where
     #[inline(always)]
     fn offset(&mut self, count: isize) {
         assert!(count >= 0);
-        self.idx += count as usize * N;
+        self.idx += count as usize * BLOCK_SIZE;
     }
 
     #[inline(always)]
@@ -283,7 +284,7 @@ where
     }
 }
 
-impl<const N: usize> Deref for BufferedInputBlock<N> {
+impl Deref for BufferedInputBlock {
     type Target = [u8];
 
     #[inline(always)]
@@ -292,10 +293,10 @@ impl<const N: usize> Deref for BufferedInputBlock<N> {
     }
 }
 
-impl<const N: usize> InputBlock<'_, N> for BufferedInputBlock<N> {
+impl InputBlock<'_> for BufferedInputBlock {
     #[inline(always)]
     fn halves(&self) -> (&[u8], &[u8]) {
-        assert_eq!(N % 2, 0);
-        (&self[..N / 2], &self[N / 2..])
+        assert_eq!(BLOCK_SIZE % 2, 0);
+        (&self[..BLOCK_SIZE / 2], &self[BLOCK_SIZE / 2..])
     }
 }

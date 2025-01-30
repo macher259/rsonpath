@@ -19,7 +19,7 @@ use crate::{
 
 /// Result of the [`FallibleIterator`] for quote classification,
 /// and of the [`offset`](`QuoteClassifiedIterator::offset`) function.
-pub type QuoteIterResult<I, M, const N: usize> = Result<Option<QuoteClassifiedBlock<I, M, N>>, InputError>;
+pub type QuoteIterResult<I, M> = Result<Option<QuoteClassifiedBlock<I, M>>, InputError>;
 
 /// Input block with a bitmask signifying which characters are within quotes.
 ///
@@ -29,7 +29,7 @@ pub type QuoteIterResult<I, M, const N: usize> = Result<Option<QuoteClassifiedBl
 ///
 /// There is no guarantee on how the boundary quote characters are classified,
 /// their bits might be lit or not lit depending on the implementation.
-pub struct QuoteClassifiedBlock<B, M, const N: usize> {
+pub struct QuoteClassifiedBlock<B, M> {
     /// The block that was classified.
     pub block: B,
     /// Mask marking characters within a quoted sequence.
@@ -38,18 +38,18 @@ pub struct QuoteClassifiedBlock<B, M, const N: usize> {
 
 /// Result of resuming quote classification, the resulting iterator
 /// and optionally the first block (already quote classified).
-pub struct ResumedQuoteClassifier<Q, B, M, const N: usize> {
+pub struct ResumedQuoteClassifier<Q, B, M> {
     /// Resumed iterator.
     pub classifier: Q,
     /// Optional first quote classified block.
-    pub first_block: Option<QuoteClassifiedBlock<B, M, N>>,
+    pub first_block: Option<QuoteClassifiedBlock<B, M>>,
 }
 
 /// Trait for quote classifier iterators, i.e. finite iterators
 /// enriching blocks of input with quote bitmasks.
 /// Iterator is allowed to hold a reference to the JSON document valid for `'a`.
-pub trait QuoteClassifiedIterator<'i, I: InputBlockIterator<'i, N>, M, const N: usize>:
-    FallibleIterator<Item = QuoteClassifiedBlock<I::Block, M, N>, Error = InputError>
+pub trait QuoteClassifiedIterator<'i, I: InputBlockIterator<'i>, M>:
+    FallibleIterator<Item = QuoteClassifiedBlock<I::Block, M>, Error = InputError>
 {
     /// Get the total offset in bytes from the beginning of input.
     fn get_offset(&self) -> usize;
@@ -59,7 +59,7 @@ pub trait QuoteClassifiedIterator<'i, I: InputBlockIterator<'i, N>, M, const N: 
     /// # Errors
     /// At least one new block is read from the underlying
     /// [`InputBlockIterator`] implementation, which can fail.
-    fn offset(&mut self, count: isize) -> QuoteIterResult<I::Block, M, N>;
+    fn offset(&mut self, count: isize) -> QuoteIterResult<I::Block, M>;
 
     /// Flip the bit representing whether the last block ended with a nonescaped quote.
     ///
@@ -75,9 +75,9 @@ pub trait InnerIter<I> {
     fn into_inner(self) -> I;
 }
 
-impl<'i, B, M, const N: usize> QuoteClassifiedBlock<B, M, N>
+impl<'i, B, M> QuoteClassifiedBlock<B, M>
 where
-    B: InputBlock<'i, N>,
+    B: InputBlock<'i>,
 {
     /// Returns the length of the classified block.
     #[must_use]
@@ -107,18 +107,18 @@ pub(crate) mod sse2_32;
 pub(crate) mod sse2_64;
 
 pub(crate) trait QuotesImpl {
-    type Classifier<'i, I>: QuoteClassifiedIterator<'i, I, MaskType, BLOCK_SIZE> + InnerIter<I>
+    type Classifier<'i, I>: QuoteClassifiedIterator<'i, I, MaskType> + InnerIter<I>
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>;
+        I: InputBlockIterator<'i>;
 
     fn new<'i, I>(iter: I) -> Self::Classifier<'i, I>
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>;
+        I: InputBlockIterator<'i>;
 
     fn resume<'i, I>(
         iter: I,
         first_block: Option<I::Block>,
-    ) -> ResumedQuoteClassifier<Self::Classifier<'i, I>, I::Block, MaskType, BLOCK_SIZE>
+    ) -> ResumedQuoteClassifier<Self::Classifier<'i, I>, I::Block, MaskType>
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>;
+        I: InputBlockIterator<'i>;
 }

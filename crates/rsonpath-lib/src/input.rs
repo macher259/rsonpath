@@ -38,6 +38,7 @@ macro_rules! repr_align_block_size {
     };
 }
 pub(crate) use repr_align_block_size;
+use crate::BLOCK_SIZE;
 
 /// Global padding guarantee for all [`Input`] implementations.
 /// Iterating over blocks of at most this size is guaranteed
@@ -55,21 +56,20 @@ pub const MAX_BLOCK_SIZE: usize = 128;
 pub trait Input: Sized {
     /// Type of the iterator used by [`iter_blocks`](Input::iter_blocks), parameterized
     /// by the lifetime of source input and the size of the block.
-    type BlockIterator<'i, 'r, R, const N: usize>: InputBlockIterator<
+    type BlockIterator<'i, 'r, R>: InputBlockIterator<
         'i,
-        N,
-        Block = Self::Block<'i, N>,
+        Block = Self::Block<'i>,
         Error = Self::Error,
     >
     where
         Self: 'i,
-        R: InputRecorder<Self::Block<'i, N>> + 'r;
+        R: InputRecorder<Self::Block<'i>> + 'r;
 
     /// Type of errors that can occur when operating on this [`Input`].
     type Error: Into<InputError>;
 
     /// Type of the blocks returned by the `BlockIterator`.
-    type Block<'i, const N: usize>: InputBlock<'i, N>
+    type Block<'i>: InputBlock<'i> + Clone
     where
         Self: 'i;
 
@@ -105,9 +105,9 @@ pub trait Input: Sized {
     /// Iterate over blocks of size `N` of the input.
     /// `N` has to be a power of two larger than 1.
     #[must_use]
-    fn iter_blocks<'i, 'r, R, const N: usize>(&'i self, recorder: &'r R) -> Self::BlockIterator<'i, 'r, R, N>
+    fn iter_blocks<'i, 'r, R>(&'i self, recorder: &'r R) -> Self::BlockIterator<'i, 'r, R>
     where
-        R: InputRecorder<Self::Block<'i, N>>;
+        R: InputRecorder<Self::Block<'i>>;
 
     /// Search for an occurrence of any of the `needles` in the input,
     /// starting from `from` and looking forward. Returns the index
@@ -161,9 +161,9 @@ pub trait BackwardSeekable {
 /// An iterator over blocks of input of size `N`.
 /// Implementations MUST guarantee that the blocks returned from `next`
 /// are *exactly* of size `N`.
-pub trait InputBlockIterator<'i, const N: usize> {
+pub trait InputBlockIterator<'i> {
     /// The type of blocks returned.
-    type Block: InputBlock<'i, N>;
+    type Block: InputBlock<'i>;
 
     /// Type of errors that can occur when reading from this iterator.
     type Error: Into<InputError>;
@@ -188,7 +188,7 @@ pub trait InputBlockIterator<'i, const N: usize> {
 }
 
 /// A block of bytes of size `N` returned from [`InputBlockIterator`].
-pub trait InputBlock<'i, const N: usize>: Deref<Target = [u8]> {
+pub trait InputBlock<'i>: Deref<Target = [u8]> {
     /// Split the block in half, giving two slices of size `N`/2.
     #[must_use]
     fn halves(&self) -> (&[u8], &[u8]);
@@ -197,20 +197,20 @@ pub trait InputBlock<'i, const N: usize>: Deref<Target = [u8]> {
     #[inline]
     #[must_use]
     fn quarters(&self) -> (&[u8], &[u8], &[u8], &[u8]) {
-        assert_eq!(N % 4, 0);
+        assert_eq!(BLOCK_SIZE % 4, 0);
         let (half1, half2) = self.halves();
-        let (q1, q2) = (&half1[..N / 4], &half1[N / 4..]);
-        let (q3, q4) = (&half2[..N / 4], &half2[N / 4..]);
+        let (q1, q2) = (&half1[..BLOCK_SIZE / 4], &half1[BLOCK_SIZE / 4..]);
+        let (q3, q4) = (&half2[..BLOCK_SIZE / 4], &half2[BLOCK_SIZE / 4..]);
 
         (q1, q2, q3, q4)
     }
 }
 
-impl<'i, const N: usize> InputBlock<'i, N> for &'i [u8] {
+impl<'i> InputBlock<'i> for &'i [u8] {
     #[inline(always)]
     fn halves(&self) -> (&[u8], &[u8]) {
-        assert_eq!(N % 2, 0);
-        (&self[..N / 2], &self[N / 2..])
+        assert_eq!(BLOCK_SIZE % 2, 0);
+        (&self[..BLOCK_SIZE / 2], &self[BLOCK_SIZE / 2..])
     }
 }
 

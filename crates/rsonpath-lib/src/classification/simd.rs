@@ -220,26 +220,26 @@ use std::{fmt::Display, marker::PhantomData};
 /// All SIMD capabilities of the engine and classifier types.
 pub(crate) trait Simd: Copy {
     /// The implementation of [`QuoteClassifiedIterator`] of this SIMD configuration.
-    type QuotesClassifier<'i, I>: QuoteClassifiedIterator<'i, I, MaskType, BLOCK_SIZE> + InnerIter<I>
+    type QuotesClassifier<'i, I>: QuoteClassifiedIterator<'i, I, MaskType> + InnerIter<I>
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>;
+        I: InputBlockIterator<'i>;
 
     /// The implementation of [`StructuralIterator`] of this SIMD configuration.
-    type StructuralClassifier<'i, I>: StructuralIterator<'i, I, Self::QuotesClassifier<'i, I>, MaskType, BLOCK_SIZE>
+    type StructuralClassifier<'i, I>: StructuralIterator<'i, I, Self::QuotesClassifier<'i, I>, MaskType>
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>;
+        I: InputBlockIterator<'i>;
 
     /// The implementation of [`DepthIterator`] of this SIMD configuration.
-    type DepthClassifier<'i, I>: DepthIterator<'i, I, Self::QuotesClassifier<'i, I>, MaskType, BLOCK_SIZE>
+    type DepthClassifier<'i, I>: DepthIterator<'i, I, Self::QuotesClassifier<'i, I>, MaskType>
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>;
+        I: InputBlockIterator<'i>;
 
     /// The implementation of [`Memmem`] of this SIMD configuration.
-    type MemmemClassifier<'i, 'b, 'r, I, R>: Memmem<'i, 'b, 'r, I, BLOCK_SIZE>
+    type MemmemClassifier<'i, 'b, 'r, I, R>: Memmem<'i, 'b, 'r, I>
     where
         I: Input + 'i,
-        <I as Input>::BlockIterator<'i, 'r, R, BLOCK_SIZE>: 'b,
-        R: InputRecorder<<I as Input>::Block<'i, BLOCK_SIZE>> + 'r,
+        <I as Input>::BlockIterator<'i, 'r, R>: 'b,
+        R: InputRecorder<<I as Input>::Block<'i>> + 'r,
         'i: 'r;
 
     /// Get a unique descriptor of the enabled SIMD capabilities.
@@ -254,7 +254,7 @@ pub(crate) trait Simd: Copy {
     #[must_use]
     fn classify_quoted_sequences<'i, I>(self, iter: I) -> Self::QuotesClassifier<'i, I>
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>;
+        I: InputBlockIterator<'i>;
 
     /// Resume quote classification from an `iter` and, optionally, an already read
     /// block that will be used as the first block to classify.
@@ -263,9 +263,9 @@ pub(crate) trait Simd: Copy {
         self,
         iter: I,
         first_block: Option<I::Block>,
-    ) -> ResumedQuoteClassifier<Self::QuotesClassifier<'i, I>, I::Block, MaskType, BLOCK_SIZE>
+    ) -> ResumedQuoteClassifier<Self::QuotesClassifier<'i, I>, I::Block, MaskType>
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>;
+        I: InputBlockIterator<'i>;
 
     /// Walk through the JSON document quote-classified by `iter` and iterate over all
     /// occurrences of structural characters in it.
@@ -275,24 +275,24 @@ pub(crate) trait Simd: Copy {
         iter: Self::QuotesClassifier<'i, I>,
     ) -> Self::StructuralClassifier<'i, I>
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>;
+        I: InputBlockIterator<'i>;
 
     /// Resume classification using a state retrieved from a previously
     /// used classifier via the [`stop`](StructuralIterator::stop) function.
     #[must_use]
     fn resume_structural_classification<'i, I>(
         self,
-        state: ResumeClassifierState<'i, I, Self::QuotesClassifier<'i, I>, MaskType, BLOCK_SIZE>,
+        state: ResumeClassifierState<'i, I, Self::QuotesClassifier<'i, I>, MaskType>,
     ) -> Self::StructuralClassifier<'i, I>
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>;
+        I: InputBlockIterator<'i>;
 
     /// Resume classification using a state retrieved from a previously
     /// used classifier via the [`stop`](DepthIterator::stop) function.
     #[must_use]
     fn resume_depth_classification<'i, I>(
         self,
-        state: ResumeClassifierState<'i, I, Self::QuotesClassifier<'i, I>, MaskType, BLOCK_SIZE>,
+        state: ResumeClassifierState<'i, I, Self::QuotesClassifier<'i, I>, MaskType>,
         opening: BracketType,
     ) -> DepthIteratorResumeOutcome<
         'i,
@@ -300,21 +300,20 @@ pub(crate) trait Simd: Copy {
         Self::QuotesClassifier<'i, I>,
         Self::DepthClassifier<'i, I>,
         MaskType,
-        BLOCK_SIZE,
     >
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>;
+        I: InputBlockIterator<'i>;
 
     /// Create a classifier that can look for occurrences of a key in the `iter`.
     #[must_use]
     fn memmem<'i, 'b, 'r, I, R>(
         self,
         input: &'i I,
-        iter: &'b mut <I as Input>::BlockIterator<'i, 'r, R, BLOCK_SIZE>,
+        iter: &'b mut <I as Input>::BlockIterator<'i, 'r, R>,
     ) -> Self::MemmemClassifier<'i, 'b, 'r, I, R>
     where
         I: Input,
-        R: InputRecorder<<I as Input>::Block<'i, BLOCK_SIZE>>,
+        R: InputRecorder<<I as Input>::Block<'i>>,
         'i: 'r;
 }
 
@@ -346,24 +345,24 @@ where
     type QuotesClassifier<'i, I>
         = Q::Classifier<'i, I>
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>;
+        I: InputBlockIterator<'i>;
 
     type StructuralClassifier<'i, I>
         = S::Classifier<'i, I, Self::QuotesClassifier<'i, I>>
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>;
+        I: InputBlockIterator<'i>;
 
     type DepthClassifier<'i, I>
         = D::Classifier<'i, I, Self::QuotesClassifier<'i, I>>
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>;
+        I: InputBlockIterator<'i>;
 
     type MemmemClassifier<'i, 'b, 'r, I, R>
         = M::Classifier<'i, 'b, 'r, I, R>
     where
         I: Input + 'i,
-        <I as Input>::BlockIterator<'i, 'r, R, BLOCK_SIZE>: 'b,
-        R: InputRecorder<<I as Input>::Block<'i, BLOCK_SIZE>> + 'r,
+        <I as Input>::BlockIterator<'i, 'r, R>: 'b,
+        R: InputRecorder<<I as Input>::Block<'i>> + 'r,
         'i: 'r;
 
     #[inline(always)]
@@ -374,7 +373,7 @@ where
     #[inline(always)]
     fn classify_quoted_sequences<'i, I>(self, iter: I) -> Self::QuotesClassifier<'i, I>
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>,
+        I: InputBlockIterator<'i>,
     {
         Q::new(iter)
     }
@@ -384,9 +383,9 @@ where
         self,
         iter: I,
         first_block: Option<I::Block>,
-    ) -> ResumedQuoteClassifier<Self::QuotesClassifier<'i, I>, I::Block, MaskType, BLOCK_SIZE>
+    ) -> ResumedQuoteClassifier<Self::QuotesClassifier<'i, I>, I::Block, MaskType>
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>,
+        I: InputBlockIterator<'i>,
     {
         Q::resume(iter, first_block)
     }
@@ -397,7 +396,7 @@ where
         iter: Self::QuotesClassifier<'i, I>,
     ) -> Self::StructuralClassifier<'i, I>
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>,
+        I: InputBlockIterator<'i>,
     {
         S::new(iter)
     }
@@ -405,10 +404,10 @@ where
     #[inline(always)]
     fn resume_structural_classification<'i, I>(
         self,
-        state: ResumeClassifierState<'i, I, Self::QuotesClassifier<'i, I>, MaskType, BLOCK_SIZE>,
+        state: ResumeClassifierState<'i, I, Self::QuotesClassifier<'i, I>, MaskType>,
     ) -> Self::StructuralClassifier<'i, I>
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>,
+        I: InputBlockIterator<'i>,
     {
         S::resume(state)
     }
@@ -416,7 +415,7 @@ where
     #[inline(always)]
     fn resume_depth_classification<'i, I>(
         self,
-        state: ResumeClassifierState<'i, I, Self::QuotesClassifier<'i, I>, MaskType, BLOCK_SIZE>,
+        state: ResumeClassifierState<'i, I, Self::QuotesClassifier<'i, I>, MaskType>,
         opening: BracketType,
     ) -> DepthIteratorResumeOutcome<
         'i,
@@ -424,10 +423,9 @@ where
         Self::QuotesClassifier<'i, I>,
         Self::DepthClassifier<'i, I>,
         MaskType,
-        BLOCK_SIZE,
     >
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>,
+        I: InputBlockIterator<'i>,
     {
         D::resume(state, opening)
     }
@@ -436,11 +434,11 @@ where
     fn memmem<'i, 'b, 'r, I, R>(
         self,
         input: &'i I,
-        iter: &'b mut <I as Input>::BlockIterator<'i, 'r, R, BLOCK_SIZE>,
+        iter: &'b mut <I as Input>::BlockIterator<'i, 'r, R>,
     ) -> Self::MemmemClassifier<'i, 'b, 'r, I, R>
     where
         I: Input,
-        R: InputRecorder<<I as Input>::Block<'i, BLOCK_SIZE>>,
+        R: InputRecorder<<I as Input>::Block<'i>>,
         'i: 'r,
     {
         M::memmem(input, iter)

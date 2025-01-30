@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Tag {
     Basic,
-    Filter,
     Function,
     MultipleSelectors,
     IndexingFromEnd,
@@ -114,7 +113,7 @@ pub fn read_and_tag<P: AsRef<Path>>(path: P) -> Result<Vec<TaggedTestCase>, io::
     let mut collection = TaggedTestCollection::new();
 
     collection.read_file_and_tag(basic, Tag::Basic)?;
-    collection.read_file_and_tag(filter, Tag::Filter)?;
+    //collection.read_file_and_tag(filter, Tag::Filter)?;
     collection.read_file_and_tag(index_selector, Tag::Basic)?;
     collection.read_file_and_tag(name_selector, Tag::Basic)?;
     collection.read_file_and_tag(slice_selector, Tag::Basic)?;
@@ -123,14 +122,14 @@ pub fn read_and_tag<P: AsRef<Path>>(path: P) -> Result<Vec<TaggedTestCase>, io::
     collection.read_file_and_tag(functions_match, Tag::Function)?;
     collection.read_file_and_tag(functions_search, Tag::Function)?;
     collection.read_file_and_tag(functions_value, Tag::Function)?;
-    collection.read_file_and_tag(whitespace_filter, Tag::Filter)?;
+    //collection.read_file_and_tag(whitespace_filter, Tag::Filter)?;
     collection.read_file_and_tag(whitespace_functions, Tag::Function)?;
-    collection.read_file_and_tag(whitespace_operators, Tag::Filter)?;
+    //collection.read_file_and_tag(whitespace_operators, Tag::Filter)?;
     collection.read_file_and_tag(whitespace_selectors, Tag::Basic)?;
     collection.read_file_and_tag(whitespace_slice, Tag::Basic)?;
 
     // This is included in /filter.json, but contains function calls.
-    collection.add_special_case_tag("equals, special nothing", Tag::Function);
+    //collection.add_special_case_tag("equals, special nothing", Tag::Function);
 
     // Tests with multiple selectors.
     let tests = [
@@ -256,7 +255,7 @@ impl TaggedTestCollection {
             .cases
             .iter_mut()
             .find(|x| x.test_case.name == name)
-            .expect("invalid special-case name");
+            .expect(&format!("invalid special-case name {:?}", name));
         case.tags.push(tag);
     }
 

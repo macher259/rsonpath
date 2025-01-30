@@ -332,7 +332,7 @@ fn test_equivalence<I: Input>(original_contents: &[u8], input: I) {
 
 fn read_input_to_end<I: Input>(input: I) -> Result<ResultInput, InputError> {
     let mut result: Vec<u8> = vec![];
-    let mut iter = input.iter_blocks::<_, BLOCK_SIZE>(&EmptyRecorder);
+    let mut iter = input.iter_blocks::<_>(&EmptyRecorder);
 
     while let Some(block) = iter.next().map_err(|x| x.into())? {
         result.extend_from_slice(&block)

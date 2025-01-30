@@ -201,11 +201,10 @@ macro_rules! Classifier {
     () => {
         TailSkip<
             'i,
-            I::BlockIterator<'i, 'r, R, BLOCK_SIZE>,
-            V::QuotesClassifier<'i, I::BlockIterator<'i, 'r, R, BLOCK_SIZE>>,
-            V::StructuralClassifier<'i, I::BlockIterator<'i, 'r, R, BLOCK_SIZE>>,
-            V,
-            BLOCK_SIZE>
+            I::BlockIterator<'i, 'r, R>,
+            V::QuotesClassifier<'i, I::BlockIterator<'i, 'r, R>>,
+            V::StructuralClassifier<'i, I::BlockIterator<'i, 'r, R>>,
+            V>
     };
 }
 
@@ -243,7 +242,7 @@ fn query_executor<'i, 'q, 'r, I, R, V: Simd>(
 ) -> Executor<'i, 'q, 'r, I, R, V>
 where
     I: Input + BackwardSeekable,
-    R: Recorder<I::Block<'i, BLOCK_SIZE>>,
+    R: Recorder<I::Block<'i>>,
 {
     Executor {
         depth: Depth::ZERO,
@@ -263,7 +262,7 @@ impl<'i, 'r, I, R, V> Executor<'i, '_, 'r, I, R, V>
 where
     'i: 'r,
     I: Input + BackwardSeekable,
-    R: Recorder<I::Block<'i, BLOCK_SIZE>>,
+    R: Recorder<I::Block<'i>>,
     V: Simd,
 {
     fn run(mut self) -> Result<(), EngineError> {
@@ -300,7 +299,7 @@ where
         where
             'i: 'r,
             I: Input + BackwardSeekable,
-            R: Recorder<I::Block<'i, BLOCK_SIZE>>,
+            R: Recorder<I::Block<'i>>,
             V: Simd
         {
             loop {
@@ -755,7 +754,7 @@ impl SmallStack {
 impl<'i, 'r, I, R, V> CanHeadSkip<'i, 'r, I, R, V> for Executor<'i, '_, 'r, I, R, V>
 where
     I: Input + BackwardSeekable,
-    R: Recorder<I::Block<'i, BLOCK_SIZE>>,
+    R: Recorder<I::Block<'i>>,
     V: Simd,
     'i: 'r,
 {
@@ -763,8 +762,8 @@ where
         &mut self,
         next_event: Structural,
         state: State,
-        structural_classifier: V::StructuralClassifier<'i, I::BlockIterator<'i, 'r, R, BLOCK_SIZE>>,
-    ) -> Result<ResumeState<'i, I::BlockIterator<'i, 'r, R, BLOCK_SIZE>, V, MaskType>, EngineError> {
+        structural_classifier: V::StructuralClassifier<'i, I::BlockIterator<'i, 'r, R>>,
+    ) -> Result<ResumeState<'i, I::BlockIterator<'i, 'r, R>, V, MaskType>, EngineError> {
         let mut classifier = TailSkip::new(structural_classifier, self.simd);
 
         self.state = state;

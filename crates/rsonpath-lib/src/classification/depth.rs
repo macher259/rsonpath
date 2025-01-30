@@ -46,27 +46,27 @@ pub trait DepthBlock<'a>: Sized {
 
 /// Trait for depth iterators, i.e. finite iterators returning depth information
 /// about JSON documents.
-pub trait DepthIterator<'i, I, Q, M, const N: usize>: FallibleIterator<Item = Self::Block, Error = InputError>
+pub trait DepthIterator<'i, I, Q, M>: FallibleIterator<Item = Self::Block, Error = InputError>
 where
-    I: InputBlockIterator<'i, N>,
+    I: InputBlockIterator<'i>,
 {
     /// Type of the [`DepthBlock`] implementation used by this iterator.
     type Block: DepthBlock<'i>;
 
     /// Resume classification from a state retrieved by a previous
     /// [`DepthIterator::stop`] or [`StructuralIterator::stop`](`crate::classification::structural::StructuralIterator::stop`) invocation.
-    fn resume(state: ResumeClassifierState<'i, I, Q, M, N>, opening: BracketType) -> (Option<Self::Block>, Self);
+    fn resume(state: ResumeClassifierState<'i, I, Q, M>, opening: BracketType) -> (Option<Self::Block>, Self);
 
     /// Stop classification and return a state object that can be used to resume
     /// a classifier from the place in which the current one was stopped.
-    fn stop(self, block: Option<Self::Block>) -> ResumeClassifierState<'i, I, Q, M, N>;
+    fn stop(self, block: Option<Self::Block>) -> ResumeClassifierState<'i, I, Q, M>;
 }
 
 /// The result of resuming a [`DepthIterator`] &ndash; the first block and the rest of the iterator.
-pub struct DepthIteratorResumeOutcome<'i, I, Q, D, M, const N: usize>(pub Option<D::Block>, pub D)
+pub struct DepthIteratorResumeOutcome<'i, I, Q, D, M>(pub Option<D::Block>, pub D)
 where
-    I: InputBlockIterator<'i, N>,
-    D: DepthIterator<'i, I, Q, M, N>;
+    I: InputBlockIterator<'i>,
+    D: DepthIterator<'i, I, Q, M>;
 
 pub(crate) mod nosimd;
 pub(crate) mod shared;
@@ -81,21 +81,21 @@ pub(crate) mod sse2_32;
 pub(crate) mod sse2_64;
 
 pub(crate) trait DepthImpl {
-    type Classifier<'i, I, Q>: DepthIterator<'i, I, Q, MaskType, BLOCK_SIZE>
+    type Classifier<'i, I, Q>: DepthIterator<'i, I, Q, MaskType>
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>,
-        Q: QuoteClassifiedIterator<'i, I, MaskType, BLOCK_SIZE>;
+        I: InputBlockIterator<'i>,
+        Q: QuoteClassifiedIterator<'i, I, MaskType>;
 
     fn resume<'i, I, Q>(
-        state: ResumeClassifierState<'i, I, Q, MaskType, BLOCK_SIZE>,
+        state: ResumeClassifierState<'i, I, Q, MaskType>,
         opening: BracketType,
-    ) -> DepthIteratorResumeOutcome<'i, I, Q, Self::Classifier<'i, I, Q>, MaskType, BLOCK_SIZE>
+    ) -> DepthIteratorResumeOutcome<'i, I, Q, Self::Classifier<'i, I, Q>, MaskType>
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>,
-        Q: QuoteClassifiedIterator<'i, I, MaskType, BLOCK_SIZE>,
+        I: InputBlockIterator<'i>,
+        Q: QuoteClassifiedIterator<'i, I, MaskType>,
     {
         let (first_block, iter) =
-            <Self::Classifier<'i, I, Q> as DepthIterator<'i, I, Q, MaskType, BLOCK_SIZE>>::resume(state, opening);
+            <Self::Classifier<'i, I, Q> as DepthIterator<'i, I, Q, MaskType>>::resume(state, opening);
         DepthIteratorResumeOutcome(first_block, iter)
     }
 }
