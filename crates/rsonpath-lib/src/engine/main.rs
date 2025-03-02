@@ -64,6 +64,7 @@ use crate::{
 };
 use rsonpath_syntax::{num::JsonUInt, str::JsonString, JsonPathQuery};
 use smallvec::{smallvec, SmallVec};
+use crate::streaming::{ByteStream, ByteStreamBlock};
 
 /// Main engine for a fixed JSONPath query.
 ///
@@ -191,6 +192,21 @@ impl Engine for MainEngine<'_> {
         })?;
 
         Ok(())
+    }
+
+    fn matches_sync<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
+    where
+        I: Iterator<Item = ByteStreamBlock> + Clone,
+        S: Sink<Match> {
+        let stream: ByteStream<I> = ByteStream {
+            iter: input_iter,
+            data: Vec::new(),
+            idx: 0,
+        };
+
+        todo!()
+
+
     }
 }
 
