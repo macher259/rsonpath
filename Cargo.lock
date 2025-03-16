@@ -1131,6 +1131,7 @@ dependencies = [
  "heck",
  "proc-macro2",
  "quote",
+ "rsonpath-lib",
  "serde",
  "toml",
  "walkdir",

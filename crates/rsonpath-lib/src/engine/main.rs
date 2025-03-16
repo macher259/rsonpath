@@ -38,7 +38,11 @@
  * state changes.
  */
 
-#![allow(clippy::type_complexity)] // The private Classifier type is very complex, but we specifically macro it out.
+#![allow(clippy::type_complexity)]
+
+use std::cell::RefCell;
+use std::rc::Rc;
+// The private Classifier type is very complex, but we specifically macro it out.
 use crate::input::BackwardSeekable;
 use crate::{
     automaton::{error::CompilerError, Automaton, State},
@@ -64,7 +68,7 @@ use crate::{
 };
 use rsonpath_syntax::{num::JsonUInt, str::JsonString, JsonPathQuery};
 use smallvec::{smallvec, SmallVec};
-use crate::streaming::{ByteStream, ByteStreamBlock};
+use crate::streaming::{ByteStream, ByteStreamBlock, InputStream};
 
 /// Main engine for a fixed JSONPath query.
 ///
@@ -128,6 +132,36 @@ impl Engine for MainEngine<'_> {
         Ok(recorder.into())
     }
 
+    fn count_sync<I>(&self, input_iter: I) -> Result<MatchCount, EngineError>
+    where
+        I: Iterator<Item=[u8; 64]>
+    {
+        let stream: ByteStream<I> = ByteStream {
+            iter: input_iter,
+            data: Vec::new(),
+            idx: 0,
+        };
+
+        let input = InputStream {
+            iter: Rc::new(RefCell::new(stream)),
+        };
+
+        if self.automaton.is_select_root_query() {
+            return select_root_query::count(&input);
+        }
+        if self.automaton.is_empty_query() {
+            return Ok(0);
+        }
+
+        let recorder = CountRecorder::new();
+        config_simd!(self.simd => |simd| {
+            let executor = query_executor(&self.automaton, &input, &recorder, simd);
+            executor.run()
+        })?;
+
+        Ok(recorder.into())
+    }
+
     #[inline]
     fn indices<I, S>(&self, input: &I, sink: &mut S) -> Result<(), EngineError>
     where
@@ -150,6 +184,37 @@ impl Engine for MainEngine<'_> {
         Ok(())
     }
 
+    fn indices_sync<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
+    where
+        I: Iterator<Item=[u8; 64]>,
+        S: Sink<MatchIndex>
+    {
+        let stream: ByteStream<I> = ByteStream {
+            iter: input_iter,
+            data: Vec::new(),
+            idx: 0,
+        };
+
+        let input = InputStream {
+            iter: Rc::new(RefCell::new(stream)),
+        };
+
+        if self.automaton.is_select_root_query() {
+            return select_root_query::index(&input, sink);
+        }
+        if self.automaton.is_empty_query() {
+            return Ok(());
+        }
+
+        let recorder = IndexRecorder::new(sink, input.leading_padding_len());
+        config_simd!(self.simd => |simd| {
+            let executor = query_executor(&self.automaton, &input, &recorder, simd);
+            executor.run()
+        })?;
+
+        Ok(())
+    }
+
     #[inline]
     fn approximate_spans<I, S>(&self, input: &I, sink: &mut S) -> Result<(), EngineError>
     where
@@ -166,6 +231,37 @@ impl Engine for MainEngine<'_> {
         let recorder = ApproxSpanRecorder::new(sink, input.leading_padding_len());
         config_simd!(self.simd => |simd| {
             let executor = query_executor(&self.automaton, input, &recorder, simd);
+            executor.run()
+        })?;
+
+        Ok(())
+    }
+
+    fn approximate_spans_sync<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
+    where
+        I: Iterator<Item=[u8; 64]>,
+        S: Sink<MatchSpan>
+    {
+        let stream: ByteStream<I> = ByteStream {
+            iter: input_iter,
+            data: Vec::new(),
+            idx: 0,
+        };
+
+        let input = InputStream {
+            iter: Rc::new(RefCell::new(stream)),
+        };
+
+        if self.automaton.is_select_root_query() {
+            return select_root_query::approx_span(&input, sink);
+        }
+        if self.automaton.is_empty_query() {
+            return Ok(());
+        }
+
+        let recorder = ApproxSpanRecorder::new(sink, input.leading_padding_len());
+        config_simd!(self.simd => |simd| {
+            let executor = query_executor(&self.automaton, &input, &recorder, simd);
             executor.run()
         })?;
 
@@ -196,17 +292,33 @@ impl Engine for MainEngine<'_> {
 
     fn matches_sync<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
     where
-        I: Iterator<Item = ByteStreamBlock> + Clone,
+        I: Iterator<Item = [u8; 64]>,
         S: Sink<Match> {
+
         let stream: ByteStream<I> = ByteStream {
             iter: input_iter,
             data: Vec::new(),
             idx: 0,
         };
 
-        todo!()
+        let input = InputStream {
+            iter: Rc::new(RefCell::new(stream)),
+        };
 
+        if self.automaton.is_select_root_query() {
+            return select_root_query::match_(&input, sink);
+        }
+        if self.automaton.is_empty_query() {
+            return Ok(());
+        }
 
+        let recorder = NodesRecorder::build_recorder(sink, input.leading_padding_len());
+        config_simd!(self.simd => |simd| {
+            let executor = query_executor(&self.automaton, &input, &recorder, simd);
+            executor.run()
+        })?;
+
+        Ok(())
     }
 }
 

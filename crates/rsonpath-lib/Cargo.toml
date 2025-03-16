@@ -16,7 +16,7 @@ categories = ["text-processing"]
 repository = "https://github.com/V0ldek/rsonpath"
 homepage = "https://v0ldek.github.io/rsonpath/"
 edition = "2021"
-rust-version = "1.67.1"
+rust-version = "1.85.0"
 
 [lib]
 bench = false
@@ -52,4 +52,9 @@ simd = []
 [[example]]
 name = "approx_spans_usage"
 path = "examples/approx_spans_usage.rs"
+doc-scrape-examples = true
+
+[[example]]
+name = "streaming_usage"
+path = "examples/streaming_usage.rs"
 doc-scrape-examples = true

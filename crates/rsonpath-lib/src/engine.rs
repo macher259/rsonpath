@@ -34,6 +34,9 @@ pub trait Engine {
     fn count<I>(&self, input: &I) -> Result<MatchCount, EngineError>
     where
         I: Input + BackwardSeekable;
+    fn count_sync<I>(&self, input_iter: I) -> Result<MatchCount, EngineError>
+    where
+        I: Iterator<Item = [u8; 64]>;
 
     /// Find the starting indices of matches on the given [`Input`] and write them to the [`Sink`].
     ///
@@ -52,6 +55,11 @@ pub trait Engine {
     fn indices<I, S>(&self, input: &I, sink: &mut S) -> Result<(), EngineError>
     where
         I: Input + BackwardSeekable,
+        S: Sink<MatchIndex>;
+
+    fn indices_sync<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
+    where
+        I: Iterator<Item = [u8; 64]>,
         S: Sink<MatchIndex>;
 
     /// Find the approximate spans of matches on the given [`Input`] and write them to the [`Sink`].
@@ -79,6 +87,11 @@ pub trait Engine {
         I: Input + BackwardSeekable,
         S: Sink<MatchSpan>;
 
+    fn approximate_spans_sync<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
+    where
+        I: Iterator<Item = [u8; 64]>,
+        S: Sink<MatchSpan>;
+
     /// Find all matches on the given [`Input`] and write them to the [`Sink`].
     ///
     /// # Errors
@@ -96,7 +109,7 @@ pub trait Engine {
 
     fn matches_sync<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
     where
-        I: Iterator<Item = ByteStreamBlock> + Clone,
+        I: Iterator<Item = [u8; 64]>,
         S: Sink<Match>;
 }
 
