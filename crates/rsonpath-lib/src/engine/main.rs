@@ -132,6 +132,7 @@ impl Engine for MainEngine<'_> {
         Ok(recorder.into())
     }
 
+    #[inline]
     fn count_sync<I>(&self, input_iter: I) -> Result<MatchCount, EngineError>
     where
         I: Iterator<Item=[u8; 64]>
@@ -184,6 +185,7 @@ impl Engine for MainEngine<'_> {
         Ok(())
     }
 
+    #[inline]
     fn indices_sync<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
     where
         I: Iterator<Item=[u8; 64]>,
@@ -237,6 +239,7 @@ impl Engine for MainEngine<'_> {
         Ok(())
     }
 
+    #[inline]
     fn approximate_spans_sync<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
     where
         I: Iterator<Item=[u8; 64]>,
@@ -290,6 +293,7 @@ impl Engine for MainEngine<'_> {
         Ok(())
     }
 
+    #[inline]
     fn matches_sync<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
     where
         I: Iterator<Item = [u8; 64]>,
