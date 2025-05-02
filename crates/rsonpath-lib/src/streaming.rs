@@ -1,11 +1,10 @@
-use std::cell::{RefCell, UnsafeCell};
+use std::cell::{RefCell};
 use std::ops::Deref;
-use std::rc::Rc;
 use std::slice;
 use rsonpath_syntax::prelude::JsonString;
 use crate::{FallibleIterator, BLOCK_SIZE};
-use crate::input::error::{Infallible, InputError};
-use crate::input::{repr_align_block_size, BackwardSeekable, Input, InputBlock, InputBlockIterator, SliceSeekable};
+use crate::input::error::{Infallible};
+use crate::input::{BackwardSeekable, Input, InputBlock, InputBlockIterator, SliceSeekable};
 use crate::result::InputRecorder;
 
 impl<'i, 'r, I: Iterator<Item=[u8; BLOCK_SIZE]>, R: InputRecorder<ByteStreamBlock>> InputBlockIterator<'_> for FakeIterator<'i, 'r, I, R> {
