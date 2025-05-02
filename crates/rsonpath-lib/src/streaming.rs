@@ -17,6 +17,7 @@ impl<'r, I: Iterator<Item=[u8; BLOCK_SIZE]>, R: InputRecorder<ByteStreamBlock>> 
     type Block = ByteStreamBlock;
     type Error = Infallible;
 
+    #[inline]
     fn next(&mut self) -> Result<Option<Self::Block>, Self::Error> {
         let block = self.stream.borrow_mut().next()?;
         match block {
@@ -29,10 +30,12 @@ impl<'r, I: Iterator<Item=[u8; BLOCK_SIZE]>, R: InputRecorder<ByteStreamBlock>> 
 
     }
 
+    #[inline]
     fn get_offset(&self) -> usize {
         self.stream.borrow().get_offset()
     }
 
+    #[inline]
     fn offset(&mut self, count: isize) {
         self.stream.borrow_mut().offset(count)
     }
@@ -45,6 +48,7 @@ pub struct ByteStream<I: Iterator<Item=[u8; BLOCK_SIZE]>> {
 }
 
 impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> ByteStream<I> {
+    #[inline(always)]
     pub fn new(iter: I) -> Self {
         Self {
             iter,
@@ -53,6 +57,7 @@ impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> ByteStream<I> {
         }
     }
 
+    #[inline]
     fn get_block(&mut self, idx: usize) -> Option<&ByteStreamBlock> {
         while idx >= self.data.len() {
             match self.iter.next() {
@@ -63,6 +68,7 @@ impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> ByteStream<I> {
         Some(&self.data[idx])
     }
 
+    #[inline]
     fn as_slice(&self) -> &[u8] {
         let len = self.data.len() * BLOCK_SIZE;
         let ptr = self.data.as_slice().as_ptr().cast();
@@ -81,12 +87,14 @@ pub struct ByteStreamBlock(pub [u8; BLOCK_SIZE]);
 impl Deref for ByteStreamBlock {
     type Target = [u8];
 
+    #[inline(always)]
     fn deref(&self) -> &[u8] {
         &self.0
     }
 }
 
 impl<'i> InputBlock<'i> for ByteStreamBlock {
+    #[inline(always)]
     fn halves(&self) -> (&[u8], &[u8]) {
         self.0.split_at(BLOCK_SIZE / 2)
     }
@@ -96,16 +104,19 @@ impl<'a, I: Iterator<Item=[u8; BLOCK_SIZE]>> InputBlockIterator<'a> for ByteStre
     type Block = ByteStreamBlock; // or [u8; BLOCK_SIZE]
     type Error = Infallible;
 
+    #[inline(always)]
     fn next(&mut self) -> Result<Option<Self::Block>, Self::Error> {
         let block = self.get_block(self.idx).cloned();
         self.idx += 1;
         Ok(block)
     }
 
+    #[inline(always)]
     fn get_offset(&self) -> usize {
         self.idx * BLOCK_SIZE
     }
 
+    #[inline(always)]
     fn offset(&mut self, count: isize) {
         self.idx = self.idx.saturating_add_signed(count);
     }
@@ -126,12 +137,14 @@ pub struct FakeIter {
 impl Iterator for FakeIter {
     type Item = ByteStreamBlock;
 
+    #[inline(always)]
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.borrow_mut().next()
     }
 }
 
 impl<I: Iterator<Item = [u8; 64]>> InputStream<I> {
+    #[inline(always)]
     pub fn new(iter: I) -> Self {
         Self {
             iter: Rc::new(
@@ -155,14 +168,17 @@ impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> Input for InputStream<I> {
     where
         Self: 'i;
 
+    #[inline(always)]
     fn leading_padding_len(&self) -> usize {
         0
     }
 
+    #[inline(always)]
     fn trailing_padding_len(&self) -> usize {
         0
     }
 
+    #[inline]
     fn iter_blocks<'i, 'r, R>(&'i self, recorder: &'r R) -> Self::BlockIterator<'i, 'r, R>
     where
         R: InputRecorder<Self::Block<'i>>
@@ -173,6 +189,7 @@ impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> Input for InputStream<I> {
         }
     }
 
+    #[inline]
     fn seek_forward<const N: usize>(&self, from: usize, needles: [u8; N]) -> Result<Option<(usize, u8)>, Self::Error> {
         let mut iter = self.iter.borrow_mut();
 
@@ -195,6 +212,7 @@ impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> Input for InputStream<I> {
         }
     }
 
+    #[inline]
     fn seek_non_whitespace_forward(&self, from: usize) -> Result<Option<(usize, u8)>, Self::Error> {
         let mut iter = self.iter.borrow_mut();
 
@@ -217,6 +235,7 @@ impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> Input for InputStream<I> {
         }
     }
 
+    #[inline]
     fn is_member_match(&self, from: usize, to: usize, member: &JsonString) -> Result<bool, Self::Error> {
         let mut iter = self.iter.borrow_mut();
         let to_idx = to / BLOCK_SIZE;
@@ -232,6 +251,8 @@ impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> Input for InputStream<I> {
 }
 
 impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> BackwardSeekable for InputStream<I> {
+
+    #[inline]
     fn seek_backward(&self, from: usize, needle: u8) -> Option<usize> {
         let mut iter = self.iter.borrow_mut();
         iter.get_block(from);
@@ -239,6 +260,7 @@ impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> BackwardSeekable for InputStream<I> {
         slice.seek_backward(from, needle)
     }
 
+    #[inline]
     fn seek_non_whitespace_backward(&self, from: usize) -> Option<(usize, u8)> {
         let mut iter = self.iter.borrow_mut();
         iter.get_block(from);
