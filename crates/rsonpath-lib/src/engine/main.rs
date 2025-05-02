@@ -133,19 +133,11 @@ impl Engine for MainEngine<'_> {
     }
 
     #[inline]
-    fn count_sync<I>(&self, input_iter: I) -> Result<MatchCount, EngineError>
+    fn count_streaming<I>(&self, input_iter: I) -> Result<MatchCount, EngineError>
     where
         I: Iterator<Item=[u8; 64]>
     {
-        let stream: ByteStream<I> = ByteStream {
-            iter: input_iter,
-            data: Vec::new(),
-            idx: 0,
-        };
-
-        let input = InputStream {
-            iter: Rc::new(RefCell::new(stream)),
-        };
+        let input = InputStream::new(input_iter);
 
         if self.automaton.is_select_root_query() {
             return select_root_query::count(&input);
@@ -186,20 +178,12 @@ impl Engine for MainEngine<'_> {
     }
 
     #[inline]
-    fn indices_sync<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
+    fn indices_streaming<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
     where
         I: Iterator<Item=[u8; 64]>,
         S: Sink<MatchIndex>
     {
-        let stream: ByteStream<I> = ByteStream {
-            iter: input_iter,
-            data: Vec::new(),
-            idx: 0,
-        };
-
-        let input = InputStream {
-            iter: Rc::new(RefCell::new(stream)),
-        };
+        let input = InputStream::new(input_iter);
 
         if self.automaton.is_select_root_query() {
             return select_root_query::index(&input, sink);
@@ -240,20 +224,12 @@ impl Engine for MainEngine<'_> {
     }
 
     #[inline]
-    fn approximate_spans_sync<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
+    fn approximate_spans_streaming<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
     where
         I: Iterator<Item=[u8; 64]>,
         S: Sink<MatchSpan>
     {
-        let stream: ByteStream<I> = ByteStream {
-            iter: input_iter,
-            data: Vec::new(),
-            idx: 0,
-        };
-
-        let input = InputStream {
-            iter: Rc::new(RefCell::new(stream)),
-        };
+        let input = InputStream::new(input_iter);
 
         if self.automaton.is_select_root_query() {
             return select_root_query::approx_span(&input, sink);
@@ -294,20 +270,11 @@ impl Engine for MainEngine<'_> {
     }
 
     #[inline]
-    fn matches_sync<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
+    fn matches_streaming<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
     where
         I: Iterator<Item = [u8; 64]>,
         S: Sink<Match> {
-
-        let stream: ByteStream<I> = ByteStream {
-            iter: input_iter,
-            data: Vec::new(),
-            idx: 0,
-        };
-
-        let input = InputStream {
-            iter: Rc::new(RefCell::new(stream)),
-        };
+        let input = InputStream::new(input_iter);
 
         if self.automaton.is_select_root_query() {
             return select_root_query::match_(&input, sink);

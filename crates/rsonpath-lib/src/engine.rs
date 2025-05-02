@@ -34,7 +34,7 @@ pub trait Engine {
     fn count<I>(&self, input: &I) -> Result<MatchCount, EngineError>
     where
         I: Input + BackwardSeekable;
-    fn count_sync<I>(&self, input_iter: I) -> Result<MatchCount, EngineError>
+    fn count_streaming<I>(&self, input_iter: I) -> Result<MatchCount, EngineError>
     where
         I: Iterator<Item = [u8; 64]>;
 
@@ -57,7 +57,7 @@ pub trait Engine {
         I: Input + BackwardSeekable,
         S: Sink<MatchIndex>;
 
-    fn indices_sync<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
+    fn indices_streaming<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
     where
         I: Iterator<Item = [u8; 64]>,
         S: Sink<MatchIndex>;
@@ -87,7 +87,7 @@ pub trait Engine {
         I: Input + BackwardSeekable,
         S: Sink<MatchSpan>;
 
-    fn approximate_spans_sync<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
+    fn approximate_spans_streaming<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
     where
         I: Iterator<Item = [u8; 64]>,
         S: Sink<MatchSpan>;
@@ -107,7 +107,7 @@ pub trait Engine {
         I: Input + BackwardSeekable,
         S: Sink<Match>;
 
-    fn matches_sync<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
+    fn matches_streaming<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
     where
         I: Iterator<Item = [u8; 64]>,
         S: Sink<Match>;

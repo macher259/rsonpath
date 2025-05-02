@@ -117,6 +117,7 @@ pub struct InputStream<I: Iterator<Item=[u8; BLOCK_SIZE]>> {
     pub iter: Rc<RefCell<ByteStream<I>>>,
 }
 
+
 #[derive(Clone)]
 pub struct FakeIter {
     pub iter: Rc<RefCell<dyn Iterator<Item = ByteStreamBlock>>>,
