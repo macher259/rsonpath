@@ -9,8 +9,6 @@ use crate::{
 };
 use std::marker::PhantomData;
 
-const SIZE: usize = 64;
-
 shared::depth_classifier!(Avx2VectorIterator64, DelimiterClassifierImpl256, DepthVector64, u64);
 
 #[inline(always)]
