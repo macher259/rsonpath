@@ -47,7 +47,8 @@ fn main() -> Result<ExitCode, Box<dyn Error>> {
 
     let engine = RsonpathEngine::compile_query(&query)?;
 
-    engine.matches_sync(input, &mut sink)?;
+    engine.matches_streaming(input, &mut sink)?;
+    print!("Finished processing");
 
     Ok(ExitCode::SUCCESS)
 }
