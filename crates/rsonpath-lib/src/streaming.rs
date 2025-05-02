@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::cell::{RefCell, UnsafeCell};
 use std::ops::Deref;
 use std::rc::Rc;
 use std::slice;
@@ -8,18 +8,15 @@ use crate::input::error::{Infallible, InputError};
 use crate::input::{repr_align_block_size, BackwardSeekable, Input, InputBlock, InputBlockIterator, SliceSeekable};
 use crate::result::InputRecorder;
 
-pub struct FakeIterator<'r, I: Iterator<Item=[u8; BLOCK_SIZE]>, R: InputRecorder<ByteStreamBlock>> {
-    pub stream: Rc<RefCell<ByteStream<I>>>,
-    pub recorder: &'r R,
-}
-
-impl<'r, I: Iterator<Item=[u8; BLOCK_SIZE]>, R: InputRecorder<ByteStreamBlock>> InputBlockIterator<'_> for FakeIterator<'r, I, R> {
+impl<'i, 'r, I: Iterator<Item=[u8; BLOCK_SIZE]>, R: InputRecorder<ByteStreamBlock>> InputBlockIterator<'_> for FakeIterator<'i, 'r, I, R> {
     type Block = ByteStreamBlock;
     type Error = Infallible;
 
     #[inline]
     fn next(&mut self) -> Result<Option<Self::Block>, Self::Error> {
-        let block = self.stream.borrow_mut().next()?;
+        let mut ptr = unsafe { self.stream.get() };
+        let mut iter = unsafe { &mut *ptr };
+        let block = iter.next()?;
         match block {
             None => Ok(None),
             Some(block) => {
@@ -32,22 +29,25 @@ impl<'r, I: Iterator<Item=[u8; BLOCK_SIZE]>, R: InputRecorder<ByteStreamBlock>> 
 
     #[inline]
     fn get_offset(&self) -> usize {
-        self.stream.borrow().get_offset()
+        let mut ptr = unsafe { self.stream.get() };
+        let mut iter = unsafe { &mut *ptr };
+        iter.get_offset()
     }
 
     #[inline]
     fn offset(&mut self, count: isize) {
-        self.stream.borrow_mut().offset(count)
+        let mut ptr = unsafe { self.stream.get() };
+        let mut iter = unsafe { &mut *ptr };
+        iter.offset(count)
     }
 }
-#[derive(Clone)]
-pub struct ByteStream<I: Iterator<Item=[u8; BLOCK_SIZE]>> {
+pub struct InnerByteStream<I: Iterator<Item=[u8; BLOCK_SIZE]>> {
     pub iter: I,
     pub data: Vec<ByteStreamBlock>,
     pub idx: usize,
 }
 
-impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> ByteStream<I> {
+impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> InnerByteStream<I> {
     #[inline(always)]
     pub fn new(iter: I) -> Self {
         Self {
@@ -100,7 +100,7 @@ impl<'i> InputBlock<'i> for ByteStreamBlock {
     }
 }
 
-impl<'a, I: Iterator<Item=[u8; BLOCK_SIZE]>> InputBlockIterator<'a> for ByteStream<I> {
+impl<'a, I: Iterator<Item=[u8; BLOCK_SIZE]>> InputBlockIterator<'a> for InnerByteStream<I> {
     type Block = ByteStreamBlock; // or [u8; BLOCK_SIZE]
     type Error = Infallible;
 
@@ -125,41 +125,30 @@ impl<'a, I: Iterator<Item=[u8; BLOCK_SIZE]>> InputBlockIterator<'a> for ByteStre
 
 
 pub struct InputStream<I: Iterator<Item=[u8; BLOCK_SIZE]>> {
-    pub iter: Rc<RefCell<ByteStream<I>>>,
-}
-
-
-#[derive(Clone)]
-pub struct FakeIter {
-    pub iter: Rc<RefCell<dyn Iterator<Item = ByteStreamBlock>>>,
-}
-
-impl Iterator for FakeIter {
-    type Item = ByteStreamBlock;
-
-    #[inline(always)]
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iter.borrow_mut().next()
-    }
+    pub iter: UnsafeCell<InnerByteStream<I>>,
 }
 
 impl<I: Iterator<Item = [u8; 64]>> InputStream<I> {
     #[inline(always)]
     pub fn new(iter: I) -> Self {
         Self {
-            iter: Rc::new(
-                RefCell::new(
-                    ByteStream::new(
+            iter:
+                UnsafeCell::new(
+                    InnerByteStream::new(
                         iter
                     )
                 )
-            )
         }
     }
 }
 
+pub struct FakeIterator<'i, 'r, I: Iterator<Item=[u8; BLOCK_SIZE]>, R: InputRecorder<ByteStreamBlock>> {
+    stream: &'i UnsafeCell<InnerByteStream<I>>,
+    recorder: &'r R,
+}
+
 impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> Input for InputStream<I> {
-    type BlockIterator<'i, 'r, R> = FakeIterator<'r, I, R>
+    type BlockIterator<'i, 'r, R> = FakeIterator<'i, 'r, I, R>
     where
         Self: 'i,
         R: InputRecorder<Self::Block<'i>> + 'r;
@@ -184,14 +173,15 @@ impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> Input for InputStream<I> {
         R: InputRecorder<Self::Block<'i>>
     {
         FakeIterator {
-            stream: self.iter.clone(),
+            stream: &self.iter,
             recorder,
         }
     }
 
     #[inline]
     fn seek_forward<const N: usize>(&self, from: usize, needles: [u8; N]) -> Result<Option<(usize, u8)>, Self::Error> {
-        let mut iter = self.iter.borrow_mut();
+        let mut ptr = unsafe { self.iter.get() };
+        let mut iter = unsafe { &mut *ptr };
 
         let mut from_idx = from / BLOCK_SIZE;
         let _ = iter.get_block(from_idx + 1);
@@ -214,7 +204,8 @@ impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> Input for InputStream<I> {
 
     #[inline]
     fn seek_non_whitespace_forward(&self, from: usize) -> Result<Option<(usize, u8)>, Self::Error> {
-        let mut iter = self.iter.borrow_mut();
+        let mut ptr = unsafe { self.iter.get() };
+        let mut iter = unsafe { &mut *ptr };
 
         let mut from_idx = from / BLOCK_SIZE;
         let _ = iter.get_block(from_idx + 1);
@@ -237,7 +228,9 @@ impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> Input for InputStream<I> {
 
     #[inline]
     fn is_member_match(&self, from: usize, to: usize, member: &JsonString) -> Result<bool, Self::Error> {
-        let mut iter = self.iter.borrow_mut();
+        let mut ptr = unsafe { self.iter.get() };
+        let mut iter = unsafe { &mut *ptr };
+
         let to_idx = to / BLOCK_SIZE;
         match iter.get_block(to_idx) {
             None => return Ok(false),
@@ -254,7 +247,8 @@ impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> BackwardSeekable for InputStream<I> {
 
     #[inline]
     fn seek_backward(&self, from: usize, needle: u8) -> Option<usize> {
-        let mut iter = self.iter.borrow_mut();
+        let mut ptr = unsafe { self.iter.get() };
+        let mut iter = unsafe { &mut *ptr };
         iter.get_block(from);
         let slice = iter.as_slice();
         slice.seek_backward(from, needle)
@@ -262,7 +256,8 @@ impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> BackwardSeekable for InputStream<I> {
 
     #[inline]
     fn seek_non_whitespace_backward(&self, from: usize) -> Option<(usize, u8)> {
-        let mut iter = self.iter.borrow_mut();
+        let mut ptr = unsafe { self.iter.get() };
+        let mut iter = unsafe { &mut *ptr };
         iter.get_block(from);
         let slice = iter.as_slice();
         slice.seek_non_whitespace_backward(from)
