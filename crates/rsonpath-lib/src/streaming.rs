@@ -14,8 +14,8 @@ impl<'i, 'r, I: Iterator<Item=[u8; BLOCK_SIZE]>, R: InputRecorder<ByteStreamBloc
 
     #[inline]
     fn next(&mut self) -> Result<Option<Self::Block>, Self::Error> {
-        let mut ptr = unsafe { self.stream.get() };
-        let mut iter = unsafe { &mut *ptr };
+        let mut iter = self.stream.borrow_mut();
+
         let block = iter.next()?;
         match block {
             None => Ok(None),
@@ -29,15 +29,13 @@ impl<'i, 'r, I: Iterator<Item=[u8; BLOCK_SIZE]>, R: InputRecorder<ByteStreamBloc
 
     #[inline]
     fn get_offset(&self) -> usize {
-        let mut ptr = unsafe { self.stream.get() };
-        let mut iter = unsafe { &mut *ptr };
+        let iter = self.stream.borrow();
         iter.get_offset()
     }
 
     #[inline]
     fn offset(&mut self, count: isize) {
-        let mut ptr = unsafe { self.stream.get() };
-        let mut iter = unsafe { &mut *ptr };
+        let mut iter = self.stream.borrow_mut();
         iter.offset(count)
     }
 }
@@ -125,7 +123,7 @@ impl<'a, I: Iterator<Item=[u8; BLOCK_SIZE]>> InputBlockIterator<'a> for InnerByt
 
 
 pub struct InputStream<I: Iterator<Item=[u8; BLOCK_SIZE]>> {
-    pub iter: UnsafeCell<InnerByteStream<I>>,
+    pub iter: RefCell<InnerByteStream<I>>,
 }
 
 impl<I: Iterator<Item = [u8; 64]>> InputStream<I> {
@@ -133,7 +131,7 @@ impl<I: Iterator<Item = [u8; 64]>> InputStream<I> {
     pub fn new(iter: I) -> Self {
         Self {
             iter:
-                UnsafeCell::new(
+                RefCell::new(
                     InnerByteStream::new(
                         iter
                     )
@@ -143,7 +141,7 @@ impl<I: Iterator<Item = [u8; 64]>> InputStream<I> {
 }
 
 pub struct FakeIterator<'i, 'r, I: Iterator<Item=[u8; BLOCK_SIZE]>, R: InputRecorder<ByteStreamBlock>> {
-    stream: &'i UnsafeCell<InnerByteStream<I>>,
+    stream: &'i RefCell<InnerByteStream<I>>,
     recorder: &'r R,
 }
 
@@ -180,8 +178,7 @@ impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> Input for InputStream<I> {
 
     #[inline]
     fn seek_forward<const N: usize>(&self, from: usize, needles: [u8; N]) -> Result<Option<(usize, u8)>, Self::Error> {
-        let mut ptr = unsafe { self.iter.get() };
-        let mut iter = unsafe { &mut *ptr };
+        let mut iter = self.iter.borrow_mut();
 
         let mut from_idx = from / BLOCK_SIZE;
         let _ = iter.get_block(from_idx + 1);
@@ -204,8 +201,7 @@ impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> Input for InputStream<I> {
 
     #[inline]
     fn seek_non_whitespace_forward(&self, from: usize) -> Result<Option<(usize, u8)>, Self::Error> {
-        let mut ptr = unsafe { self.iter.get() };
-        let mut iter = unsafe { &mut *ptr };
+        let mut iter = self.iter.borrow_mut();
 
         let mut from_idx = from / BLOCK_SIZE;
         let _ = iter.get_block(from_idx + 1);
@@ -228,8 +224,7 @@ impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> Input for InputStream<I> {
 
     #[inline]
     fn is_member_match(&self, from: usize, to: usize, member: &JsonString) -> Result<bool, Self::Error> {
-        let mut ptr = unsafe { self.iter.get() };
-        let mut iter = unsafe { &mut *ptr };
+        let mut iter = self.iter.borrow_mut();
 
         let to_idx = to / BLOCK_SIZE;
         match iter.get_block(to_idx) {
@@ -247,8 +242,8 @@ impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> BackwardSeekable for InputStream<I> {
 
     #[inline]
     fn seek_backward(&self, from: usize, needle: u8) -> Option<usize> {
-        let mut ptr = unsafe { self.iter.get() };
-        let mut iter = unsafe { &mut *ptr };
+        let mut iter = self.iter.borrow_mut();
+
         iter.get_block(from);
         let slice = iter.as_slice();
         slice.seek_backward(from, needle)
@@ -256,8 +251,8 @@ impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> BackwardSeekable for InputStream<I> {
 
     #[inline]
     fn seek_non_whitespace_backward(&self, from: usize) -> Option<(usize, u8)> {
-        let mut ptr = unsafe { self.iter.get() };
-        let mut iter = unsafe { &mut *ptr };
+        let mut iter = self.iter.borrow_mut();
+
         iter.get_block(from);
         let slice = iter.as_slice();
         slice.seek_non_whitespace_backward(from)
