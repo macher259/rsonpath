@@ -68,7 +68,8 @@ use crate::{
 };
 use rsonpath_syntax::{num::JsonUInt, str::JsonString, JsonPathQuery};
 use smallvec::{smallvec, SmallVec};
-use crate::streaming::{ByteStream, ByteStreamBlock, InputStream};
+use crate::input::error::InputError;
+use crate::streaming::{InnerByteStream, ByteStreamBlock, InputStream};
 
 /// Main engine for a fixed JSONPath query.
 ///
@@ -133,9 +134,10 @@ impl Engine for MainEngine<'_> {
     }
 
     #[inline]
-    fn count_streaming<I>(&self, input_iter: I) -> Result<MatchCount, EngineError>
+    fn count_streaming<I, E>(&self, input_iter: I) -> Result<MatchCount, EngineError>
     where
-        I: Iterator<Item=[u8; 64]>
+        I: Iterator<Item=[u8; BLOCK_SIZE]>,
+        InputError: From<E>,
     {
         let input = InputStream::new(input_iter);
 
@@ -178,10 +180,11 @@ impl Engine for MainEngine<'_> {
     }
 
     #[inline]
-    fn indices_streaming<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
+    fn indices_streaming<I, S, E>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
     where
-        I: Iterator<Item=[u8; 64]>,
-        S: Sink<MatchIndex>
+        I: Iterator<Item=[u8; BLOCK_SIZE]>,
+        S: Sink<MatchIndex>,
+        InputError: From<E>,
     {
         let input = InputStream::new(input_iter);
 
@@ -224,10 +227,11 @@ impl Engine for MainEngine<'_> {
     }
 
     #[inline]
-    fn approximate_spans_streaming<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
+    fn approximate_spans_streaming<I, S, E>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
     where
-        I: Iterator<Item=[u8; 64]>,
-        S: Sink<MatchSpan>
+        I: Iterator<Item=[u8; BLOCK_SIZE]>,
+        S: Sink<MatchSpan>,
+        InputError: From<E>,
     {
         let input = InputStream::new(input_iter);
 
@@ -270,10 +274,12 @@ impl Engine for MainEngine<'_> {
     }
 
     #[inline]
-    fn matches_streaming<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
+    fn matches_streaming<I, S, E>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
     where
-        I: Iterator<Item = [u8; 64]>,
-        S: Sink<Match> {
+        I: Iterator<Item = [u8; BLOCK_SIZE]>,
+        S: Sink<Match>,
+        InputError: From<E>,
+    {
         let input = InputStream::new(input_iter);
 
         if self.automaton.is_select_root_query() {

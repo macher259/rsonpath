@@ -1,6 +1,7 @@
 //! Common errors shared across the library.
 use std::fmt::{self, Display};
 use thiserror::Error;
+use crate::input::error::{Infallible, InputError};
 
 pub(crate) const FEATURE_REQUEST_URL: &str =
     "https://github.com/V0ldek/rsonpath/issues/new?template=feature_request.md";

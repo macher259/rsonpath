@@ -3,13 +3,18 @@ use std::ops::Deref;
 use std::slice;
 use rsonpath_syntax::prelude::JsonString;
 use crate::{FallibleIterator, BLOCK_SIZE};
-use crate::input::error::{Infallible};
+use crate::input::error::{Infallible, InputError};
 use crate::input::{BackwardSeekable, Input, InputBlock, InputBlockIterator, SliceSeekable};
 use crate::result::InputRecorder;
 
-impl<'i, 'r, I: Iterator<Item=[u8; BLOCK_SIZE]>, R: InputRecorder<ByteStreamBlock>> InputBlockIterator<'_> for FakeIterator<'i, 'r, I, R> {
+impl<'i, 'r, I, R, E> InputBlockIterator<'_> for FakeIterator<'i, 'r, I, R, E>
+where
+    I: Iterator<Item=[u8; BLOCK_SIZE]>,
+    R: InputRecorder<ByteStreamBlock>,
+    InputError: From<E>,
+{
     type Block = ByteStreamBlock;
-    type Error = Infallible;
+    type Error = E;
 
     #[inline]
     fn next(&mut self) -> Result<Option<Self::Block>, Self::Error> {
@@ -38,19 +43,21 @@ impl<'i, 'r, I: Iterator<Item=[u8; BLOCK_SIZE]>, R: InputRecorder<ByteStreamBloc
         iter.offset(count)
     }
 }
-pub struct InnerByteStream<I: Iterator<Item=[u8; BLOCK_SIZE]>> {
+pub struct InnerByteStream<I: Iterator<Item=[u8; BLOCK_SIZE]>, E> {
     pub iter: I,
     pub data: Vec<ByteStreamBlock>,
     pub idx: usize,
+    _phantom: std::marker::PhantomData<E>,
 }
 
-impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> InnerByteStream<I> {
+impl<I: Iterator<Item=[u8; BLOCK_SIZE]>, E> InnerByteStream<I, E> {
     #[inline(always)]
     pub fn new(iter: I) -> Self {
         Self {
             iter,
             data: Vec::new(),
             idx: 0,
+            _phantom: std::marker::PhantomData,
         }
     }
 
@@ -97,9 +104,13 @@ impl<'i> InputBlock<'i> for ByteStreamBlock {
     }
 }
 
-impl<'a, I: Iterator<Item=[u8; BLOCK_SIZE]>> InputBlockIterator<'a> for InnerByteStream<I> {
+impl<'a, I, E> InputBlockIterator<'a> for InnerByteStream<I, E>
+where
+    I: Iterator<Item=[u8; BLOCK_SIZE]>,
+    InputError: From<E>
+{
     type Block = ByteStreamBlock; // or [u8; BLOCK_SIZE]
-    type Error = Infallible;
+    type Error = E;
 
     #[inline(always)]
     fn next(&mut self) -> Result<Option<Self::Block>, Self::Error> {
@@ -121,11 +132,12 @@ impl<'a, I: Iterator<Item=[u8; BLOCK_SIZE]>> InputBlockIterator<'a> for InnerByt
 
 
 
-pub struct InputStream<I: Iterator<Item=[u8; BLOCK_SIZE]>> {
-    pub iter: RefCell<InnerByteStream<I>>,
+pub struct InputStream<I: Iterator<Item=[u8; BLOCK_SIZE]>, E> {
+    pub iter: RefCell<InnerByteStream<I, E>>,
+    _phantom: std::marker::PhantomData<E>,
 }
 
-impl<I: Iterator<Item = [u8; 64]>> InputStream<I> {
+impl<I: Iterator<Item = [u8; BLOCK_SIZE]>, E> InputStream<I, E> {
     #[inline(always)]
     pub fn new(iter: I) -> Self {
         Self {
@@ -134,22 +146,28 @@ impl<I: Iterator<Item = [u8; 64]>> InputStream<I> {
                     InnerByteStream::new(
                         iter
                     )
-                )
+                ),
+            _phantom: std::marker::PhantomData,
         }
     }
 }
 
-pub struct FakeIterator<'i, 'r, I: Iterator<Item=[u8; BLOCK_SIZE]>, R: InputRecorder<ByteStreamBlock>> {
-    stream: &'i RefCell<InnerByteStream<I>>,
+pub struct FakeIterator<'i, 'r, I: Iterator<Item=[u8; BLOCK_SIZE]>, R: InputRecorder<ByteStreamBlock>, E> {
+    stream: &'i RefCell<InnerByteStream<I, E>>,
     recorder: &'r R,
+    _phantom: std::marker::PhantomData<E>,
 }
 
-impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> Input for InputStream<I> {
-    type BlockIterator<'i, 'r, R> = FakeIterator<'i, 'r, I, R>
+impl<I, E> Input for InputStream<I, E>
+where
+    I: Iterator<Item=[u8; BLOCK_SIZE]>,
+    InputError: From<E>,
+{
+    type BlockIterator<'i, 'r, R> = FakeIterator<'i, 'r, I, R, E>
     where
         Self: 'i,
         R: InputRecorder<Self::Block<'i>> + 'r;
-    type Error = Infallible;
+    type Error = E;
     type Block<'i> = ByteStreamBlock
     where
         Self: 'i;
@@ -172,6 +190,7 @@ impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> Input for InputStream<I> {
         FakeIterator {
             stream: &self.iter,
             recorder,
+            _phantom: std::marker::PhantomData,
         }
     }
 
@@ -237,7 +256,7 @@ impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> Input for InputStream<I> {
     }
 }
 
-impl<I: Iterator<Item=[u8; BLOCK_SIZE]>> BackwardSeekable for InputStream<I> {
+impl<I: Iterator<Item=[u8; BLOCK_SIZE]>, E> BackwardSeekable for InputStream<I, E> {
 
     #[inline]
     fn seek_backward(&self, from: usize, needle: u8) -> Option<usize> {

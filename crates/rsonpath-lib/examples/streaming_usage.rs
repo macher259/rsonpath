@@ -7,6 +7,7 @@ use std::{env, error::Error, fs, io, process::ExitCode};
 use std::cell::RefCell;
 use std::io::Read;
 use std::rc::Rc;
+use rsonpath::input::error::Infallible;
 use rsonpath::streaming::ByteStreamBlock;
 
 fn string_to_iter(s: String) -> impl Iterator<Item = [u8; 64]> {
@@ -47,7 +48,7 @@ fn main() -> Result<ExitCode, Box<dyn Error>> {
 
     let engine = RsonpathEngine::compile_query(&query)?;
 
-    engine.matches_streaming(input, &mut sink)?;
+    engine.matches_streaming::<_, _, Infallible>(input, &mut sink)?;
     print!("Finished processing");
 
     Ok(ExitCode::SUCCESS)

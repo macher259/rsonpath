@@ -14,6 +14,7 @@ use self::error::EngineError;
 use crate::input::BackwardSeekable;
 use crate::{automaton::{error::CompilerError, Automaton}, input::Input, result::{Match, MatchCount, MatchIndex, MatchSpan, Sink}, BLOCK_SIZE};
 use rsonpath_syntax::JsonPathQuery;
+use crate::input::error::InputError;
 use crate::streaming::ByteStreamBlock;
 
 /// An engine that can run its query on a given input.
@@ -34,9 +35,10 @@ pub trait Engine {
     fn count<I>(&self, input: &I) -> Result<MatchCount, EngineError>
     where
         I: Input + BackwardSeekable;
-    fn count_streaming<I>(&self, input_iter: I) -> Result<MatchCount, EngineError>
+    fn count_streaming<I, E>(&self, input_iter: I) -> Result<MatchCount, EngineError>
     where
-        I: Iterator<Item = [u8; 64]>;
+        I: Iterator<Item = [u8; BLOCK_SIZE]>,
+        InputError: From<E>;
 
     /// Find the starting indices of matches on the given [`Input`] and write them to the [`Sink`].
     ///
@@ -57,10 +59,11 @@ pub trait Engine {
         I: Input + BackwardSeekable,
         S: Sink<MatchIndex>;
 
-    fn indices_streaming<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
+    fn indices_streaming<I, S,E >(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
     where
-        I: Iterator<Item = [u8; 64]>,
-        S: Sink<MatchIndex>;
+        I: Iterator<Item = [u8; BLOCK_SIZE]>,
+        S: Sink<MatchIndex>,
+        InputError: From<E>;
 
     /// Find the approximate spans of matches on the given [`Input`] and write them to the [`Sink`].
     ///
@@ -87,10 +90,11 @@ pub trait Engine {
         I: Input + BackwardSeekable,
         S: Sink<MatchSpan>;
 
-    fn approximate_spans_streaming<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
+    fn approximate_spans_streaming<I, S, E>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
     where
-        I: Iterator<Item = [u8; 64]>,
-        S: Sink<MatchSpan>;
+        I: Iterator<Item = [u8; BLOCK_SIZE]>,
+        S: Sink<MatchSpan>,
+        InputError: From<E>;
 
     /// Find all matches on the given [`Input`] and write them to the [`Sink`].
     ///
@@ -107,10 +111,11 @@ pub trait Engine {
         I: Input + BackwardSeekable,
         S: Sink<Match>;
 
-    fn matches_streaming<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
+    fn matches_streaming<I, S, E>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
     where
-        I: Iterator<Item = [u8; 64]>,
-        S: Sink<Match>;
+        I: Iterator<Item = [u8; BLOCK_SIZE]>,
+        S: Sink<Match>,
+        InputError: From<E>;
 }
 
 /// An engine that can be created by compiling a [`JsonPathQuery`].
