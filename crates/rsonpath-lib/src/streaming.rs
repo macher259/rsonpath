@@ -1,4 +1,5 @@
-use std::cell::{RefCell};
+use std::cell::{Ref, RefCell};
+use std::collections::VecDeque;
 use std::ops::Deref;
 use std::slice;
 use rsonpath_syntax::prelude::JsonString;
@@ -50,7 +51,7 @@ where
 }
 pub struct InnerByteStream<I: Iterator<Item=[u8; BLOCK_SIZE]>, E> {
     pub iter: I,
-    pub data: Vec<ByteStreamBlock>,
+    pub data: RefCell<VecDeque<ByteStreamBlock>>,
     pub idx: usize,
     pub released: usize,
     _phantom: std::marker::PhantomData<E>,
@@ -61,28 +62,29 @@ impl<I: Iterator<Item=[u8; BLOCK_SIZE]>, E> InnerByteStream<I, E> {
     pub fn new(iter: I) -> Self {
         Self {
             iter,
-            data: Vec::new(),
+            data: RefCell::new(VecDeque::new()),
             idx: 0,
             released: 0,
             _phantom: std::marker::PhantomData,
         }
     }
-
+    
     #[inline]
-    fn get_block(&mut self, idx: usize) -> Option<&ByteStreamBlock> {
-        while idx >= self.data.len() {
+    fn get_block(&mut self, idx: usize) -> Option<ByteStreamBlock> {
+        while idx >= self.data.borrow().len() {
             match self.iter.next() {
                 None => return None,
-                Some(block) => self.data.push(ByteStreamBlock(block))
+                Some(block) => self.data.borrow_mut().push_back(ByteStreamBlock(block))
             }
         }
-        Some(&self.data[idx])
+        self.data.borrow().get(idx).map(Clone::clone)
     }
 
     #[inline]
     fn as_slice(&self) -> &[u8] {
-        let len = self.data.len() * BLOCK_SIZE;
-        let ptr = self.data.as_slice().as_ptr().cast();
+        let mut data = self.data.borrow_mut();
+        let len = data.len() * BLOCK_SIZE;
+        let ptr = data.make_contiguous().as_ptr().cast();
 
         unsafe { slice::from_raw_parts(ptr, len) }
     }
@@ -121,7 +123,7 @@ where
 
     #[inline(always)]
     fn next(&mut self) -> Result<Option<Self::Block>, Self::Error> {
-        let block = self.get_block(self.idx - self.released).cloned();
+        let block = self.get_block(self.idx - self.released);
         self.idx += 1;
         Ok(block)
     }
@@ -141,7 +143,7 @@ where
             //let bytes = &self.as_slice()[0..((last_idx_to_remove + 1) * BLOCK_SIZE)];
             //let s = String::from_utf8(bytes.to_vec()).unwrap();
             //println!("Removed: {}", s);
-            self.data.drain(0..=last_idx_to_remove);
+            self.data.borrow_mut().drain(0..=last_idx_to_remove);
 
 
             //let s = String::from_utf8(self.as_slice().to_vec()).unwrap();
