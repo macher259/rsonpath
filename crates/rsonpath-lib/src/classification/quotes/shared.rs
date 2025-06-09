@@ -100,6 +100,10 @@ macro_rules! quote_classifier {
             I: InputBlockIterator<'i>,
         {
             #[inline(always)]
+            fn release_memory(&mut self) {
+                self.iter.release_blocks();
+            }
+            #[inline(always)]
             fn get_offset(&self) -> usize {
                 self.iter.get_offset() - BLOCK_SIZE
             }

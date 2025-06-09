@@ -295,6 +295,9 @@ where
         debug!("getting input iter {}", self.idx);
         self.idx
     }
+
+    #[inline(always)]
+    fn release_blocks(&mut self) {}
 }
 
 impl<'a, 'r, R> InputBlockIterator<'a> for BorrowedBytesBlockIterator<'r, EndPaddedInput<'a>, R>
@@ -350,4 +353,7 @@ where
         debug!("getting input iter {}", self.idx);
         self.idx
     }
+
+    #[inline(always)]
+    fn release_blocks(&mut self) {}
 }

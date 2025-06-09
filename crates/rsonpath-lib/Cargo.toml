@@ -58,3 +58,8 @@ doc-scrape-examples = true
 name = "streaming_usage"
 path = "examples/streaming_usage.rs"
 doc-scrape-examples = true
+
+[[example]]
+name = "count_usage"
+path = "examples/count_usage.rs"
+doc-scrape-examples = true

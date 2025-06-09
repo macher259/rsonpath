@@ -113,6 +113,11 @@ macro_rules! structural_classifier {
             Q: QuoteClassifiedIterator<'a, I, $mask_ty>,
         {
             #[inline(always)]
+            fn release_memory(&mut self) {
+                self.iter.release_memory();
+            }
+            
+            #[inline(always)]
             fn turn_colons_and_commas_on(&mut self, idx: usize) {
                 if !self.are_commas_on && !self.are_colons_on {
                     self.are_commas_on = true;

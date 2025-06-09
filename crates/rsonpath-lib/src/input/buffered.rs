@@ -282,6 +282,9 @@ where
     fn get_offset(&self) -> usize {
         self.idx
     }
+
+    #[inline(always)]
+    fn release_blocks(&mut self) {}
 }
 
 impl Deref for BufferedInputBlock {

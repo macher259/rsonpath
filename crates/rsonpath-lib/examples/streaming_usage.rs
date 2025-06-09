@@ -1,54 +1,39 @@
+use rsonpath::input::error::Infallible;
 use rsonpath::{
     engine::{Compiler, Engine, RsonpathEngine},
-    input::MmapInput,
     result::MatchWriter,
 };
+use std::io::{repeat, Read};
 use std::{env, error::Error, fs, io, process::ExitCode};
-use std::cell::RefCell;
-use std::io::Read;
-use std::rc::Rc;
-use rsonpath::input::error::Infallible;
-use rsonpath::streaming::ByteStreamBlock;
-
-fn string_to_iter(s: String) -> impl Iterator<Item = [u8; 64]> {
-    let bytes = s.into_bytes();
-    let len = bytes.len();
-    let mut pos = 0;
-    std::iter::from_fn(move || {
-        if pos >= len {
-            None
-        } else {
-            let mut array = [0u8; 64];
-            let end = (pos + 64).min(len);
-            array[..(end - pos)].copy_from_slice(&bytes[pos..end]);
-            pos += 64;
-            Some(array)
-        }
-    })
-}
 
 fn main() -> Result<ExitCode, Box<dyn Error>> {
     let args: Vec<_> = env::args().collect();
 
-    if args.len() != 2 {
-        eprintln!("provide exactly 1 arguments, file path");
+    if args.len() != 3 {
+        eprintln!("provide exactly 2 arguments, file path and query");
         return Ok(ExitCode::FAILURE);
     }
 
-    let file_path = &args[1];
+    let file_path = &args[1]; // File has to have length being multiple of 64
 
-    let query = rsonpath_syntax::parse("$..search_metadata..count")?;
+    let query = rsonpath_syntax::parse(&args[2])?;
     let mut file = fs::File::open(file_path)?;
-    let mut s = String::new();
-    let n = file.read_to_string(&mut s)?;
+    let mut s = Vec::new();
+    let n = file.read_to_end(&mut s)?;
     assert_eq!(n > 0, true);
-    let input = string_to_iter(s);
-    let stdout_lock = io::stdout().lock();
-    let mut sink = MatchWriter::from(stdout_lock);
+    let pad_len = 64 - (n % 64);
+    s.resize(n + pad_len, ' ' as u8);
+    //assert_eq!(n % 64, 0, "File length must be multiple of 64");
+    let chunks = s.chunks_exact(64).map(|chunk| {
+        let mut arr = [' ' as u8; 64];
+        arr.copy_from_slice(chunk);
+        arr
+    });
 
     let engine = RsonpathEngine::compile_query(&query)?;
 
-    engine.matches_streaming::<_, _, Infallible>(input, &mut sink)?;
+    let count = engine.count_streaming::<_, Infallible>(chunks)?;
+    println!("{}", count);
     print!("Finished processing");
 
     Ok(ExitCode::SUCCESS)

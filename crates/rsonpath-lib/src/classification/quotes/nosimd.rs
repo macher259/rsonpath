@@ -123,6 +123,10 @@ where
         self.iter.get_offset() - BLOCK_SIZE
     }
 
+    fn release_memory(&mut self) {
+        self.iter.release_blocks();
+    }
+
     fn offset(&mut self, count: isize) -> QuoteIterResult<I::Block, MaskType> {
         debug_assert!(count > 0);
         debug!("Offsetting by {count}");

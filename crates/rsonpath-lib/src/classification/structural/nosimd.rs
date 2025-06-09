@@ -185,6 +185,10 @@ where
         }
     }
 
+    fn release_memory(&mut self) {
+        self.iter.release_memory();
+    }
+
     fn turn_colons_and_commas_off(&mut self) {
         if self.are_commas_on && self.are_colons_on {
             self.are_commas_on = false;

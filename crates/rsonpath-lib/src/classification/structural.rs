@@ -134,6 +134,8 @@ where
 
     /// Turn classification of [`Structural::Colon`] characters off.
     fn turn_colons_off(&mut self);
+    
+    fn release_memory(&mut self);
 
     /// Turn classification of [`Structural::Colon`] characters on.
     ///

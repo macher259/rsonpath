@@ -32,6 +32,12 @@ where
             _phantom: (PhantomData, PhantomData),
         }
     }
+    
+    pub(crate) fn release_memory(&mut self) {
+        self.classifier.iter_mut().for_each(|classifier| {
+            classifier.release_memory();
+        })
+    }
 
     pub(crate) fn skip(&mut self, opening: BracketType) -> Result<usize, EngineError> {
         dispatch_simd!(self.simd; self, opening =>

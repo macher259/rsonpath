@@ -60,6 +60,8 @@ pub trait QuoteClassifiedIterator<'i, I: InputBlockIterator<'i>, M>:
     /// At least one new block is read from the underlying
     /// [`InputBlockIterator`] implementation, which can fail.
     fn offset(&mut self, count: isize) -> QuoteIterResult<I::Block, M>;
+    
+    fn release_memory(&mut self);
 
     /// Flip the bit representing whether the last block ended with a nonescaped quote.
     ///

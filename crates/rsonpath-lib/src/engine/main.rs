@@ -375,6 +375,7 @@ where
         // If yes, delegate the control to HeadSkip and give it full access to this Executor.
         // Otherwise, we run our normal one-shot engine.
         let mb_head_skip = HeadSkip::new(self.input, self.automaton, self.simd);
+        
 
         match mb_head_skip {
             Some(head_skip) => head_skip.run_head_skipping(&mut self),
@@ -424,11 +425,22 @@ where
                     debug!("====================");
 
                     match event {
-                        Structural::Colon(idx) => eng.handle_colon(classifier, idx)?,
-                        Structural::Comma(idx) => eng.handle_comma(classifier, idx)?,
-                        Structural::Opening(b, idx) => eng.handle_opening(classifier, b, idx)?,
+                        Structural::Colon(idx) => {
+                            eng.handle_colon(classifier, idx)?;
+                        classifier.release_memory();
+                        },
+                        Structural::Comma(idx) => {
+                            eng.handle_comma(classifier, idx)?;
+                            classifier.release_memory();
+                        },
+                        Structural::Opening(b, idx) => {
+                            eng.handle_opening(classifier, b, idx)?
+                        },
                         Structural::Closing(_, idx) => {
                             eng.handle_closing(classifier, idx)?;
+                            classifier.release_memory();
+
+
 
                             if eng.depth == Depth::ZERO {
                                 break;

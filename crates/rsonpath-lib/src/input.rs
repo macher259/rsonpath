@@ -185,6 +185,8 @@ pub trait InputBlockIterator<'i> {
     ///
     /// The `count` parameter must be greater than 0.
     fn offset(&mut self, count: isize);
+
+    fn release_blocks(&mut self);
 }
 
 /// A block of bytes of size `N` returned from [`InputBlockIterator`].
