@@ -14,16 +14,16 @@ const SIZE: usize = 32;
 shared::depth_classifier!(Sse2VectorIterator32, DelimiterClassifierImpl128, DepthVector32, 32, u32);
 
 #[inline(always)]
-fn new_vector<'a, B: InputBlock<'a, SIZE>>(
-    bytes: QuoteClassifiedBlock<B, u32, SIZE>,
+fn new_vector<'a, B: InputBlock<'a>>(
+    bytes: QuoteClassifiedBlock<B, u32>,
     classifier: &DelimiterClassifierImpl128,
 ) -> DepthVector32<'a, B> {
     new_vector_from(bytes, classifier, 0)
 }
 
 #[inline(always)]
-fn new_vector_from<'a, B: InputBlock<'a, SIZE>>(
-    bytes: QuoteClassifiedBlock<B, u32, SIZE>,
+fn new_vector_from<'a, B: InputBlock<'a>>(
+    bytes: QuoteClassifiedBlock<B, u32>,
     classifier: &DelimiterClassifierImpl128,
     idx: usize,
 ) -> DepthVector32<'a, B> {
@@ -32,8 +32,8 @@ fn new_vector_from<'a, B: InputBlock<'a, SIZE>>(
 }
 
 #[inline(always)]
-unsafe fn new_sse2<'a, B: InputBlock<'a, SIZE>>(
-    bytes: QuoteClassifiedBlock<B, u32, SIZE>,
+unsafe fn new_sse2<'a, B: InputBlock<'a>>(
+    bytes: QuoteClassifiedBlock<B, u32>,
     classifier: &DelimiterClassifierImpl128,
     start_idx: usize,
 ) -> DepthVector32<'a, B> {

@@ -7,13 +7,13 @@ use std::ops::Deref;
 const SIZE: usize = 32;
 
 pub(crate) struct StructuralsBlock<B> {
-    pub(crate) quote_classified: QuoteClassifiedBlock<B, u32, SIZE>,
+    pub(crate) quote_classified: QuoteClassifiedBlock<B, u32>,
     pub(crate) structural_mask: u32,
 }
 
 impl<B> StructuralsBlock<B> {
     #[inline(always)]
-    pub(crate) fn new(block: QuoteClassifiedBlock<B, u32, SIZE>, structural_mask: u32) -> Self {
+    pub(crate) fn new(block: QuoteClassifiedBlock<B, u32>, structural_mask: u32) -> Self {
         Self {
             quote_classified: block,
             structural_mask,

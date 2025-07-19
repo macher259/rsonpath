@@ -97,21 +97,6 @@ impl<T: AsRef<[u8]>> SliceSeekable for T {
 
 #[cfg(test)]
 mod tests {
-    mod input_block_impl_for_slice {
-        use crate::input::InputBlock;
-        use pretty_assertions::assert_eq;
-
-        #[test]
-        fn halves_splits_in_half() {
-            let bytes = r#"0123456789abcdef"#.as_bytes();
-
-            let (half1, half2) = <&[u8] as InputBlock<16>>::halves(&bytes);
-
-            assert_eq!(half1, "01234567".as_bytes());
-            assert_eq!(half2, "89abcdef".as_bytes());
-        }
-    }
-
     mod seek_backward {
         use crate::input::SliceSeekable;
         use pretty_assertions::assert_eq;

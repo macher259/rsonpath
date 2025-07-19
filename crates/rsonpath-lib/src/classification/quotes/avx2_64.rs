@@ -5,7 +5,7 @@ use super::{
 use crate::{block, classification::mask::m64, debug, input::error::InputErrorConvertible};
 use std::marker::PhantomData;
 
-super::shared::quote_classifier!(Avx2QuoteClassifier64, BlockAvx2Classifier, 64, u64);
+super::shared::quote_classifier!(Avx2QuoteClassifier64, BlockAvx2Classifier, u64);
 
 struct BlockAvx2Classifier {
     internal_classifier: mask_64::BlockClassifier64Bit,
@@ -19,7 +19,7 @@ impl BlockAvx2Classifier {
     }
 
     #[inline(always)]
-    unsafe fn classify<'a, B: InputBlock<'a, 64>>(&mut self, blocks: &B) -> u64 {
+    unsafe fn classify<'a, B: InputBlock<'a>>(&mut self, blocks: &B) -> u64 {
         block!(blocks[..64]);
 
         let (block1, block2) = blocks.halves();
@@ -58,7 +58,7 @@ mod tests {
         let owned_str = str.to_owned();
         let input = OwnedBytes::from(owned_str);
         let mut leading_padding = input.leading_padding_len() as u64;
-        let iter = input.iter_blocks::<_, 64>(&EmptyRecorder);
+        let iter = input.iter_blocks::<_>(&EmptyRecorder);
         let mut classifier = Constructor::new(iter);
 
         // Drop padding-only blocks.

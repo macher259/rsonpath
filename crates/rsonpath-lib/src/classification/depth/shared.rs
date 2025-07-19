@@ -9,12 +9,15 @@ pub(super) mod vector_256;
 
 #[allow(unused_macros)]
 macro_rules! depth_classifier {
-    ($name:ident, $core:ident, $vector:ident, $size:literal, $mask_ty:ty) => {
+    ($name:ident, $core:ident, $vector:ident, $mask_ty:ty) => {
         pub(crate) struct Constructor;
 
         impl DepthImpl for Constructor {
-            type Classifier<'i, I, Q> = $name<'i, I, Q>
-            where I: InputBlockIterator<'i, BLOCK_SIZE>, Q: QuoteClassifiedIterator<'i, I, MaskType, BLOCK_SIZE>;
+            type Classifier<'i, I, Q>
+                = $name<'i, I, Q>
+            where
+                I: InputBlockIterator<'i>,
+                Q: QuoteClassifiedIterator<'i, I, MaskType>;
         }
 
         pub(crate) struct $name<'i, I, Q> {
@@ -27,8 +30,8 @@ macro_rules! depth_classifier {
 
         impl<'a, I, Q> FallibleIterator for $name<'a, I, Q>
         where
-            I: InputBlockIterator<'a, $size>,
-            Q: QuoteClassifiedIterator<'a, I, $mask_ty, $size>,
+            I: InputBlockIterator<'a>,
+            Q: QuoteClassifiedIterator<'a, I, $mask_ty>,
         {
             type Item = $vector<'a, I::Block>;
             type Error = InputError;
@@ -40,15 +43,15 @@ macro_rules! depth_classifier {
             }
         }
 
-        impl<'a, I, Q> DepthIterator<'a, I, Q, $mask_ty, $size> for $name<'a, I, Q>
+        impl<'a, I, Q> DepthIterator<'a, I, Q, $mask_ty> for $name<'a, I, Q>
         where
-            I: InputBlockIterator<'a, $size>,
-            Q: QuoteClassifiedIterator<'a, I, $mask_ty, $size>,
+            I: InputBlockIterator<'a>,
+            Q: QuoteClassifiedIterator<'a, I, $mask_ty>,
         {
             type Block = $vector<'a, I::Block>;
 
             #[inline(always)]
-            fn stop(self, block: Option<Self::Block>) -> ResumeClassifierState<'a, I, Q, $mask_ty, $size> {
+            fn stop(self, block: Option<Self::Block>) -> ResumeClassifierState<'a, I, Q, $mask_ty> {
                 let block_state = block.and_then(|b| {
                     let idx = b.idx;
                     debug!("Depth iterator stopping at index {idx}");
@@ -72,12 +75,12 @@ macro_rules! depth_classifier {
 
             #[inline(always)]
             fn resume(
-                state: ResumeClassifierState<'a, I, Q, $mask_ty, $size>,
+                state: ResumeClassifierState<'a, I, Q, $mask_ty>,
                 opening: BracketType,
             ) -> (Option<Self::Block>, Self) {
                 let classifier = $core::new(opening);
                 let first_block = state.block.and_then(|b| {
-                    if b.idx == $size {
+                    if b.idx == BLOCK_SIZE {
                         None
                     } else {
                         Some(new_vector_from(b.block, &classifier, b.idx))

@@ -9,17 +9,20 @@ pub(super) mod vector_256;
 
 #[allow(unused_macros)]
 macro_rules! quote_classifier {
-    ($name:ident, $core:ident, $size:literal, $mask_ty:ty) => {
+    ($name:ident, $core:ident, $mask_ty:ty) => {
         pub(crate) struct Constructor;
 
         impl QuotesImpl for Constructor {
-            type Classifier<'i, I> = $name<'i, I> where I: InputBlockIterator<'i, BLOCK_SIZE>;
+            type Classifier<'i, I>
+                = $name<'i, I>
+            where
+                I: InputBlockIterator<'i>;
 
             #[inline]
             #[allow(dead_code)]
             fn new<'i, I>(iter: I) -> Self::Classifier<'i, I>
             where
-                I: InputBlockIterator<'i, $size>,
+                I: InputBlockIterator<'i>,
             {
                 Self::Classifier {
                     iter,
@@ -33,9 +36,9 @@ macro_rules! quote_classifier {
             fn resume<'i, I>(
                 iter: I,
                 first_block: Option<I::Block>,
-            ) -> ResumedQuoteClassifier<Self::Classifier<'i, I>, I::Block, MaskType, BLOCK_SIZE>
+            ) -> ResumedQuoteClassifier<Self::Classifier<'i, I>, I::Block, MaskType>
             where
-                I: InputBlockIterator<'i, $size>,
+                I: InputBlockIterator<'i>,
             {
                 let mut s = Self::Classifier {
                     iter,
@@ -61,7 +64,7 @@ macro_rules! quote_classifier {
 
         pub(crate) struct $name<'i, I>
         where
-            I: InputBlockIterator<'i, $size>,
+            I: InputBlockIterator<'i>,
         {
             iter: I,
             classifier: $core,
@@ -70,9 +73,9 @@ macro_rules! quote_classifier {
 
         impl<'i, I> FallibleIterator for $name<'i, I>
         where
-            I: InputBlockIterator<'i, $size>,
+            I: InputBlockIterator<'i>,
         {
-            type Item = QuoteClassifiedBlock<I::Block, $mask_ty, $size>;
+            type Item = QuoteClassifiedBlock<I::Block, $mask_ty>;
             type Error = InputError;
 
             #[inline(always)]
@@ -92,17 +95,17 @@ macro_rules! quote_classifier {
             }
         }
 
-        impl<'i, I> QuoteClassifiedIterator<'i, I, $mask_ty, $size> for $name<'i, I>
+        impl<'i, I> QuoteClassifiedIterator<'i, I, $mask_ty> for $name<'i, I>
         where
-            I: InputBlockIterator<'i, $size>,
+            I: InputBlockIterator<'i>,
         {
             #[inline(always)]
             fn get_offset(&self) -> usize {
-                self.iter.get_offset() - $size
+                self.iter.get_offset() - BLOCK_SIZE
             }
 
             #[inline(always)]
-            fn offset(&mut self, count: isize) -> QuoteIterResult<I::Block, $mask_ty, $size> {
+            fn offset(&mut self, count: isize) -> QuoteIterResult<I::Block, $mask_ty> {
                 debug_assert!(count > 0);
                 debug!("Offsetting by {count}");
 
@@ -121,7 +124,7 @@ macro_rules! quote_classifier {
 
         impl<'i, I> InnerIter<I> for $name<'i, I>
         where
-            I: InputBlockIterator<'i, $size>,
+            I: InputBlockIterator<'i>,
         {
             fn into_inner(self) -> I {
                 self.iter

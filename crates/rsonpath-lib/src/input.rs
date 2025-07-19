@@ -37,6 +37,7 @@ macro_rules! repr_align_block_size {
         $it
     };
 }
+use crate::BLOCK_SIZE;
 pub(crate) use repr_align_block_size;
 
 /// Global padding guarantee for all [`Input`] implementations.
@@ -54,22 +55,17 @@ pub const MAX_BLOCK_SIZE: usize = 128;
 /// block-by-block iteration and basic seeking procedures.
 pub trait Input: Sized {
     /// Type of the iterator used by [`iter_blocks`](Input::iter_blocks), parameterized
-    /// by the lifetime of source input and the size of the block.
-    type BlockIterator<'i, 'r, R, const N: usize>: InputBlockIterator<
-        'i,
-        N,
-        Block = Self::Block<'i, N>,
-        Error = Self::Error,
-    >
+    /// by the lifetime of source input.
+    type BlockIterator<'i, 'r, R>: InputBlockIterator<'i, Block = Self::Block<'i>, Error = Self::Error>
     where
         Self: 'i,
-        R: InputRecorder<Self::Block<'i, N>> + 'r;
+        R: InputRecorder<Self::Block<'i>> + 'r;
 
     /// Type of errors that can occur when operating on this [`Input`].
     type Error: Into<InputError>;
 
     /// Type of the blocks returned by the `BlockIterator`.
-    type Block<'i, const N: usize>: InputBlock<'i, N>
+    type Block<'i>: InputBlock<'i>
     where
         Self: 'i;
 
@@ -102,12 +98,12 @@ pub trait Input: Sized {
     #[must_use]
     fn trailing_padding_len(&self) -> usize;
 
-    /// Iterate over blocks of size `N` of the input.
-    /// `N` has to be a power of two larger than 1.
+    /// Iterate over blocks of size `BLOCK_SIZE` of the input.
+    /// `BLOCK_SIZE` has to be a power of two larger than 1.
     #[must_use]
-    fn iter_blocks<'i, 'r, R, const N: usize>(&'i self, recorder: &'r R) -> Self::BlockIterator<'i, 'r, R, N>
+    fn iter_blocks<'i, 'r, R>(&'i self, recorder: &'r R) -> Self::BlockIterator<'i, 'r, R>
     where
-        R: InputRecorder<Self::Block<'i, N>>;
+        R: InputRecorder<Self::Block<'i>>;
 
     /// Search for an occurrence of `needle` in the input,
     /// starting from `from` and looking back. Returns the index
@@ -154,12 +150,12 @@ pub trait Input: Sized {
     fn is_member_match(&self, from: usize, to: usize, member: &JsonString) -> Result<bool, Self::Error>;
 }
 
-/// An iterator over blocks of input of size `N`.
+/// An iterator over blocks of input of size `BLOCK_SIZE`.
 /// Implementations MUST guarantee that the blocks returned from `next`
-/// are *exactly* of size `N`.
-pub trait InputBlockIterator<'i, const N: usize> {
+/// are *exactly* of size `BLOCK_SIZE`.
+pub trait InputBlockIterator<'i> {
     /// The type of blocks returned.
-    type Block: InputBlock<'i, N>;
+    type Block: InputBlock<'i>;
 
     /// Type of errors that can occur when reading from this iterator.
     type Error: Into<InputError>;
@@ -173,7 +169,7 @@ pub trait InputBlockIterator<'i, const N: usize> {
     /// Get the offset of the iterator in the input.
     ///
     /// The offset is the starting point of the block that will be returned next
-    /// from this iterator, if any. It starts as 0 and increases by `N` on every
+    /// from this iterator, if any. It starts as 0 and increases by `BLOCK_SIZE` on every
     /// block retrieved.
     fn get_offset(&self) -> usize;
 
@@ -183,30 +179,30 @@ pub trait InputBlockIterator<'i, const N: usize> {
     fn offset(&mut self, count: isize);
 }
 
-/// A block of bytes of size `N` returned from [`InputBlockIterator`].
-pub trait InputBlock<'i, const N: usize>: Deref<Target = [u8]> {
-    /// Split the block in half, giving two slices of size `N`/2.
+/// A block of bytes of size `BLOCK_SIZE` returned from [`InputBlockIterator`].
+pub trait InputBlock<'i>: Deref<Target = [u8]> {
+    /// Split the block in half, giving two slices of size `BLOCK_SIZE`/2.
     #[must_use]
     fn halves(&self) -> (&[u8], &[u8]);
 
-    /// Split the block in four, giving four slices of size `N`/4.
+    /// Split the block in four, giving four slices of size `BLOCK_SIZE`/4.
     #[inline]
     #[must_use]
     fn quarters(&self) -> (&[u8], &[u8], &[u8], &[u8]) {
-        assert_eq!(N % 4, 0);
+        assert_eq!(BLOCK_SIZE % 4, 0);
         let (half1, half2) = self.halves();
-        let (q1, q2) = (&half1[..N / 4], &half1[N / 4..]);
-        let (q3, q4) = (&half2[..N / 4], &half2[N / 4..]);
+        let (q1, q2) = (&half1[..BLOCK_SIZE / 4], &half1[BLOCK_SIZE / 4..]);
+        let (q3, q4) = (&half2[..BLOCK_SIZE / 4], &half2[BLOCK_SIZE / 4..]);
 
         (q1, q2, q3, q4)
     }
 }
 
-impl<'i, const N: usize> InputBlock<'i, N> for &'i [u8] {
+impl<'i> InputBlock<'i> for &'i [u8] {
     #[inline(always)]
     fn halves(&self) -> (&[u8], &[u8]) {
-        assert_eq!(N % 2, 0);
-        (&self[..N / 2], &self[N / 2..])
+        assert_eq!(BLOCK_SIZE % 2, 0);
+        (&self[..BLOCK_SIZE / 2], &self[BLOCK_SIZE / 2..])
     }
 }
 

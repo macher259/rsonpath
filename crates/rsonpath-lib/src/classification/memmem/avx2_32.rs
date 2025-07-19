@@ -6,20 +6,21 @@ const SIZE: usize = 32;
 pub(crate) struct Constructor;
 
 impl MemmemImpl for Constructor {
-    type Classifier<'i, 'b, 'r, I, R> = Avx2MemmemClassifier32<'i, 'b, 'r, I, R>
+    type Classifier<'i, 'b, 'r, I, R>
+        = Avx2MemmemClassifier32<'i, 'b, 'r, I, R>
     where
         I: Input + 'i,
-        <I as Input>::BlockIterator<'i, 'r, R, BLOCK_SIZE>: 'b,
-        R: InputRecorder<<I as Input>::Block<'i, BLOCK_SIZE>> + 'r,
+        <I as Input>::BlockIterator<'i, 'r, R>: 'b,
+        R: InputRecorder<<I as Input>::Block<'i>> + 'r,
         'i: 'r;
 
     fn memmem<'i, 'b, 'r, I, R>(
         input: &'i I,
-        iter: &'b mut <I as Input>::BlockIterator<'i, 'r, R, BLOCK_SIZE>,
+        iter: &'b mut <I as Input>::BlockIterator<'i, 'r, R>,
     ) -> Self::Classifier<'i, 'b, 'r, I, R>
     where
         I: Input,
-        R: InputRecorder<<I as Input>::Block<'i, BLOCK_SIZE>>,
+        R: InputRecorder<<I as Input>::Block<'i>>,
         'i: 'r,
     {
         Self::Classifier { input, iter }
@@ -29,21 +30,21 @@ impl MemmemImpl for Constructor {
 pub(crate) struct Avx2MemmemClassifier32<'i, 'b, 'r, I, R>
 where
     I: Input,
-    R: InputRecorder<I::Block<'i, SIZE>> + 'r,
+    R: InputRecorder<I::Block<'i>> + 'r,
 {
     input: &'i I,
-    iter: &'b mut I::BlockIterator<'i, 'r, R, SIZE>,
+    iter: &'b mut I::BlockIterator<'i, 'r, R>,
 }
 
 impl<'i, 'b, 'r, I, R> Avx2MemmemClassifier32<'i, 'b, 'r, I, R>
 where
     I: Input,
-    R: InputRecorder<I::Block<'i, SIZE>>,
+    R: InputRecorder<I::Block<'i>>,
     'i: 'r,
 {
     #[inline]
     #[allow(dead_code)]
-    pub(crate) fn new(input: &'i I, iter: &'b mut I::BlockIterator<'i, 'r, R, SIZE>) -> Self {
+    pub(crate) fn new(input: &'i I, iter: &'b mut I::BlockIterator<'i, 'r, R>) -> Self {
         Self { input, iter }
     }
 
@@ -52,7 +53,7 @@ where
         &mut self,
         label: &JsonString,
         mut offset: usize,
-    ) -> Result<Option<(usize, I::Block<'i, SIZE>)>, InputError> {
+    ) -> Result<Option<(usize, I::Block<'i>)>, InputError> {
         let classifier = vector_256::BlockClassifier256::new(b'"', b'"');
         let mut previous_block: u32 = 0;
 
@@ -87,7 +88,7 @@ where
         &mut self,
         label: &JsonString,
         mut offset: usize,
-    ) -> Result<Option<(usize, I::Block<'i, SIZE>)>, InputError> {
+    ) -> Result<Option<(usize, I::Block<'i>)>, InputError> {
         let classifier = vector_256::BlockClassifier256::new(label.unquoted().as_bytes()[0], b'"');
         let mut previous_block: u32 = 0;
 
@@ -117,7 +118,7 @@ where
         &mut self,
         label: &JsonString,
         mut offset: usize,
-    ) -> Result<Option<(usize, I::Block<'i, SIZE>)>, InputError> {
+    ) -> Result<Option<(usize, I::Block<'i>)>, InputError> {
         if label.unquoted().is_empty() {
             return self.find_empty(label, offset);
         } else if label.unquoted().len() == 1 {
@@ -150,19 +151,19 @@ where
     }
 }
 
-impl<'i, 'b, 'r, I, R> Memmem<'i, 'b, 'r, I, SIZE> for Avx2MemmemClassifier32<'i, 'b, 'r, I, R>
+impl<'i, 'b, 'r, I, R> Memmem<'i, 'b, 'r, I> for Avx2MemmemClassifier32<'i, 'b, 'r, I, R>
 where
     I: Input,
-    R: InputRecorder<I::Block<'i, SIZE>>,
+    R: InputRecorder<I::Block<'i>>,
     'i: 'r,
 {
     #[inline(always)]
     fn find_label(
         &mut self,
-        first_block: Option<I::Block<'i, SIZE>>,
+        first_block: Option<I::Block<'i>>,
         start_idx: usize,
         label: &JsonString,
-    ) -> Result<Option<(usize, I::Block<'i, SIZE>)>, InputError> {
+    ) -> Result<Option<(usize, I::Block<'i>)>, InputError> {
         if let Some(b) = first_block {
             if let Some(res) = shared::find_label_in_first_block(self.input, b, start_idx, label)? {
                 return Ok(Some(res));

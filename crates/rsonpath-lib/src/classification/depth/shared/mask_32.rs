@@ -16,8 +16,8 @@ const SIZE: usize = 32;
 /// depth within the block by counting the number of opening
 /// and closing structural characters. This can be done much
 /// more quickly than precise depth calculation.
-pub(crate) struct DepthVector32<'a, B: InputBlock<'a, SIZE>> {
-    pub(crate) quote_classified: QuoteClassifiedBlock<B, u32, SIZE>,
+pub(crate) struct DepthVector32<'a, B: InputBlock<'a>> {
+    pub(crate) quote_classified: QuoteClassifiedBlock<B, u32>,
     pub(crate) opening_mask: u32,
     pub(crate) opening_count: u32,
     pub(crate) closing_mask: u32,
@@ -26,7 +26,7 @@ pub(crate) struct DepthVector32<'a, B: InputBlock<'a, SIZE>> {
     pub(crate) phantom: PhantomData<&'a ()>,
 }
 
-impl<'a, B: InputBlock<'a, SIZE>> DepthBlock<'a> for DepthVector32<'a, B> {
+impl<'a, B: InputBlock<'a>> DepthBlock<'a> for DepthVector32<'a, B> {
     #[inline(always)]
     fn advance_to_next_depth_decrease(&mut self) -> bool {
         debug_assert!(is_x86_feature_detected!("popcnt"));

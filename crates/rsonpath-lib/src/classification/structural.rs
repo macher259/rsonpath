@@ -120,17 +120,16 @@ impl Structural {
 
 /// Trait for classifier iterators, i.e. finite iterators of [`Structural`] characters
 /// that hold a reference to the JSON document valid for `'a`.
-pub trait StructuralIterator<'i, I, Q, M, const N: usize>:
-    FallibleIterator<Item = Structural, Error = InputError>
+pub trait StructuralIterator<'i, I, Q, M>: FallibleIterator<Item = Structural, Error = InputError>
 where
-    I: InputBlockIterator<'i, N>,
+    I: InputBlockIterator<'i>,
 {
     /// Stop classification and return a state object that can be used to resume
     /// a classifier from the place in which the current one was stopped.
-    fn stop(self) -> ResumeClassifierState<'i, I, Q, M, N>;
+    fn stop(self) -> ResumeClassifierState<'i, I, Q, M>;
 
     /// Resume classification from a state retrieved by stopping a classifier.
-    fn resume(state: ResumeClassifierState<'i, I, Q, M, N>) -> Self;
+    fn resume(state: ResumeClassifierState<'i, I, Q, M>) -> Self;
 
     /// Turn classification of [`Structural::Colon`] characters off.
     fn turn_colons_off(&mut self);
@@ -182,22 +181,22 @@ pub(crate) mod ssse3_32;
 pub(crate) mod ssse3_64;
 
 pub(crate) trait StructuralImpl {
-    type Classifier<'i, I, Q>: StructuralIterator<'i, I, Q, MaskType, BLOCK_SIZE>
+    type Classifier<'i, I, Q>: StructuralIterator<'i, I, Q, MaskType>
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>,
-        Q: QuoteClassifiedIterator<'i, I, MaskType, BLOCK_SIZE>;
+        I: InputBlockIterator<'i>,
+        Q: QuoteClassifiedIterator<'i, I, MaskType>;
 
     fn new<'i, I, Q>(iter: Q) -> Self::Classifier<'i, I, Q>
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>,
-        Q: QuoteClassifiedIterator<'i, I, MaskType, BLOCK_SIZE>;
+        I: InputBlockIterator<'i>,
+        Q: QuoteClassifiedIterator<'i, I, MaskType>;
 
-    fn resume<'i, I, Q>(state: ResumeClassifierState<'i, I, Q, MaskType, BLOCK_SIZE>) -> Self::Classifier<'i, I, Q>
+    fn resume<'i, I, Q>(state: ResumeClassifierState<'i, I, Q, MaskType>) -> Self::Classifier<'i, I, Q>
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>,
-        Q: QuoteClassifiedIterator<'i, I, MaskType, BLOCK_SIZE>,
+        I: InputBlockIterator<'i>,
+        Q: QuoteClassifiedIterator<'i, I, MaskType>,
     {
-        <Self::Classifier<'i, I, Q> as StructuralIterator<'i, I, Q, MaskType, BLOCK_SIZE>>::resume(state)
+        <Self::Classifier<'i, I, Q> as StructuralIterator<'i, I, Q, MaskType>>::resume(state)
     }
 }
 

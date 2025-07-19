@@ -9,21 +9,19 @@ use crate::{
 };
 use std::marker::PhantomData;
 
-const SIZE: usize = 64;
-
-shared::depth_classifier!(Avx2VectorIterator64, DelimiterClassifierImpl256, DepthVector64, 64, u64);
+shared::depth_classifier!(Avx2VectorIterator64, DelimiterClassifierImpl256, DepthVector64, u64);
 
 #[inline(always)]
-fn new_vector<'a, B: InputBlock<'a, SIZE>>(
-    bytes: QuoteClassifiedBlock<B, u64, SIZE>,
+fn new_vector<'a, B: InputBlock<'a>>(
+    bytes: QuoteClassifiedBlock<B, u64>,
     classifier: &DelimiterClassifierImpl256,
 ) -> DepthVector64<'a, B> {
     new_vector_from(bytes, classifier, 0)
 }
 
 #[inline(always)]
-fn new_vector_from<'a, B: InputBlock<'a, SIZE>>(
-    bytes: QuoteClassifiedBlock<B, u64, SIZE>,
+fn new_vector_from<'a, B: InputBlock<'a>>(
+    bytes: QuoteClassifiedBlock<B, u64>,
     classifier: &DelimiterClassifierImpl256,
     idx: usize,
 ) -> DepthVector64<'a, B> {
@@ -32,8 +30,8 @@ fn new_vector_from<'a, B: InputBlock<'a, SIZE>>(
 }
 
 #[inline(always)]
-unsafe fn new_avx2<'a, B: InputBlock<'a, SIZE>>(
-    bytes: QuoteClassifiedBlock<B, u64, SIZE>,
+unsafe fn new_avx2<'a, B: InputBlock<'a>>(
+    bytes: QuoteClassifiedBlock<B, u64>,
     classifier: &DelimiterClassifierImpl256,
     start_idx: usize,
 ) -> DepthVector64<'a, B> {

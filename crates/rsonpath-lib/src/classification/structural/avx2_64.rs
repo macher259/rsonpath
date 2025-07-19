@@ -10,7 +10,7 @@ use crate::{
     input::InputBlock,
 };
 
-super::shared::structural_classifier!(Avx2Classifier64, BlockAvx2Classifier64, mask_64, 64, u64);
+super::shared::structural_classifier!(Avx2Classifier64, BlockAvx2Classifier64, mask_64, u64);
 
 struct BlockAvx2Classifier64 {
     internal_classifier: vector_256::BlockClassifier256,
@@ -25,9 +25,9 @@ impl BlockAvx2Classifier64 {
     }
 
     #[inline(always)]
-    unsafe fn classify<'i, B: InputBlock<'i, 64>>(
+    unsafe fn classify<'i, B: InputBlock<'i>>(
         &mut self,
-        quote_classified_block: QuoteClassifiedBlock<B, u64, 64>,
+        quote_classified_block: QuoteClassifiedBlock<B, u64>,
     ) -> mask_64::StructuralsBlock<B> {
         let (block1, block2) = quote_classified_block.block.halves();
         let classification1 = self.internal_classifier.classify_block(block1);

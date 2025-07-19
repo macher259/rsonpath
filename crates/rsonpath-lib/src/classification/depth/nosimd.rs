@@ -8,13 +8,14 @@ use std::marker::PhantomData;
 pub(crate) struct Constructor;
 
 impl DepthImpl for Constructor {
-    type Classifier<'i, I, Q> = VectorIterator<'i, I, Q, BLOCK_SIZE>
+    type Classifier<'i, I, Q>
+        = VectorIterator<'i, I, Q>
     where
-        I: InputBlockIterator<'i, BLOCK_SIZE>,
-        Q: QuoteClassifiedIterator<'i, I, MaskType, BLOCK_SIZE>;
+        I: InputBlockIterator<'i>,
+        Q: QuoteClassifiedIterator<'i, I, MaskType>;
 }
 
-pub(crate) struct VectorIterator<'i, I, Q, const N: usize> {
+pub(crate) struct VectorIterator<'i, I, Q> {
     iter: Q,
     opening: BracketType,
     were_commas_on: bool,
@@ -22,12 +23,12 @@ pub(crate) struct VectorIterator<'i, I, Q, const N: usize> {
     phantom: PhantomData<(&'i (), I)>,
 }
 
-impl<'i, I, Q, const N: usize> FallibleIterator for VectorIterator<'i, I, Q, N>
+impl<'i, I, Q> FallibleIterator for VectorIterator<'i, I, Q>
 where
-    I: InputBlockIterator<'i, N>,
-    Q: QuoteClassifiedIterator<'i, I, MaskType, N>,
+    I: InputBlockIterator<'i>,
+    Q: QuoteClassifiedIterator<'i, I, MaskType>,
 {
-    type Item = Vector<'i, I, N>;
+    type Item = Vector<'i, I>;
     type Error = InputError;
 
     fn next(&mut self) -> Result<Option<Self::Item>, InputError> {
@@ -36,14 +37,14 @@ where
     }
 }
 
-impl<'i, I, Q, const N: usize> DepthIterator<'i, I, Q, MaskType, N> for VectorIterator<'i, I, Q, N>
+impl<'i, I, Q> DepthIterator<'i, I, Q, MaskType> for VectorIterator<'i, I, Q>
 where
-    I: InputBlockIterator<'i, N>,
-    Q: QuoteClassifiedIterator<'i, I, MaskType, N>,
+    I: InputBlockIterator<'i>,
+    Q: QuoteClassifiedIterator<'i, I, MaskType>,
 {
-    type Block = Vector<'i, I, N>;
+    type Block = Vector<'i, I>;
 
-    fn stop(self, block: Option<Self::Block>) -> ResumeClassifierState<'i, I, Q, MaskType, N> {
+    fn stop(self, block: Option<Self::Block>) -> ResumeClassifierState<'i, I, Q, MaskType> {
         let block_state = block.and_then(|b| {
             debug!("Depth iterator stopping at index {}", b.idx);
             if b.idx >= b.quote_classified.len() {
@@ -64,10 +65,7 @@ where
         }
     }
 
-    fn resume(
-        state: ResumeClassifierState<'i, I, Q, MaskType, N>,
-        opening: BracketType,
-    ) -> (Option<Self::Block>, Self) {
+    fn resume(state: ResumeClassifierState<'i, I, Q, MaskType>, opening: BracketType) -> (Option<Self::Block>, Self) {
         let first_block = state.block.map(|b| Vector::new_from(b.block, opening, b.idx));
 
         (
@@ -83,27 +81,27 @@ where
     }
 }
 
-pub(crate) struct Vector<'i, I, const N: usize>
+pub(crate) struct Vector<'i, I>
 where
-    I: InputBlockIterator<'i, N>,
+    I: InputBlockIterator<'i>,
 {
-    quote_classified: QuoteClassifiedBlock<I::Block, MaskType, N>,
+    quote_classified: QuoteClassifiedBlock<I::Block, MaskType>,
     depth: isize,
     idx: usize,
     bracket_type: BracketType,
 }
 
-impl<'i, I, const N: usize> Vector<'i, I, N>
+impl<'i, I> Vector<'i, I>
 where
-    I: InputBlockIterator<'i, N>,
+    I: InputBlockIterator<'i>,
 {
     #[inline]
-    pub(crate) fn new(bytes: QuoteClassifiedBlock<I::Block, MaskType, N>, opening: BracketType) -> Self {
+    pub(crate) fn new(bytes: QuoteClassifiedBlock<I::Block, MaskType>, opening: BracketType) -> Self {
         Self::new_from(bytes, opening, 0)
     }
 
     #[inline]
-    fn new_from(bytes: QuoteClassifiedBlock<I::Block, MaskType, N>, opening: BracketType, idx: usize) -> Self {
+    fn new_from(bytes: QuoteClassifiedBlock<I::Block, MaskType>, opening: BracketType, idx: usize) -> Self {
         Self {
             quote_classified: bytes,
             depth: 0,
@@ -146,9 +144,9 @@ where
     }
 }
 
-impl<'i, I, const N: usize> DepthBlock<'i> for Vector<'i, I, N>
+impl<'i, I> DepthBlock<'i> for Vector<'i, I>
 where
-    I: InputBlockIterator<'i, N>,
+    I: InputBlockIterator<'i>,
 {
     #[inline]
     fn get_depth(&self) -> isize {

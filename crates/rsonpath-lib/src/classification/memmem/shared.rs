@@ -2,6 +2,7 @@ use crate::input::{
     error::{InputError, InputErrorConvertible},
     Input,
 };
+use crate::BLOCK_SIZE;
 use rsonpath_syntax::str::JsonString;
 
 #[cfg(target_arch = "x86")]
@@ -13,17 +14,17 @@ pub(super) mod vector_128;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 pub(super) mod vector_256;
 
-pub(crate) fn find_label_in_first_block<'i, 'r, I, const N: usize>(
+pub(crate) fn find_label_in_first_block<'i, 'r, I>(
     input: &I,
-    first_block: I::Block<'i, N>,
+    first_block: I::Block<'i>,
     start_idx: usize,
     label: &JsonString,
-) -> Result<Option<(usize, I::Block<'i, N>)>, InputError>
+) -> Result<Option<(usize, I::Block<'i>)>, InputError>
 where
     I: Input,
     'i: 'r,
 {
-    let block_idx = start_idx % N;
+    let block_idx = start_idx % BLOCK_SIZE;
     let label_size = label.quoted().len();
 
     for (i, c) in first_block[block_idx..].iter().copied().enumerate() {

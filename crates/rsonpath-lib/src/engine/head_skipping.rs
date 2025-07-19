@@ -27,7 +27,7 @@ use rsonpath_syntax::str::JsonString;
 pub(super) trait CanHeadSkip<'i, 'r, I, R, V>
 where
     I: Input + 'i,
-    R: Recorder<I::Block<'i, BLOCK_SIZE>>,
+    R: Recorder<I::Block<'i>>,
     V: Simd,
 {
     /// Function called when head-skipping finds a member name at which normal query execution
@@ -47,21 +47,19 @@ where
         &mut self,
         next_event: Structural,
         state: State,
-        structural_classifier: V::StructuralClassifier<'i, I::BlockIterator<'i, 'r, R, BLOCK_SIZE>>,
-    ) -> Result<ResumeState<'i, I::BlockIterator<'i, 'r, R, BLOCK_SIZE>, V, MaskType>, EngineError>;
+        structural_classifier: V::StructuralClassifier<'i, I::BlockIterator<'i, 'r, R>>,
+    ) -> Result<ResumeState<'i, I::BlockIterator<'i, 'r, R>, V, MaskType>, EngineError>;
 
     fn recorder(&mut self) -> &'r R;
 }
 
-pub(super) struct ResumeState<'i, I, V, M>(
-    pub(super) ResumeClassifierState<'i, I, V::QuotesClassifier<'i, I>, M, BLOCK_SIZE>,
-)
+pub(super) struct ResumeState<'i, I, V, M>(pub(super) ResumeClassifierState<'i, I, V::QuotesClassifier<'i, I>, M>)
 where
-    I: InputBlockIterator<'i, BLOCK_SIZE>,
+    I: InputBlockIterator<'i>,
     V: Simd;
 
 /// Configuration of the head-skipping decorator.
-pub(super) struct HeadSkip<'b, 'q, I, V, const N: usize> {
+pub(super) struct HeadSkip<'b, 'q, I, V> {
     bytes: &'b I,
     state: State,
     is_accepting: bool,
@@ -69,7 +67,7 @@ pub(super) struct HeadSkip<'b, 'q, I, V, const N: usize> {
     simd: V,
 }
 
-impl<'b, 'q, I: Input, V: Simd> HeadSkip<'b, 'q, I, V, BLOCK_SIZE> {
+impl<'b, 'q, I: Input, V: Simd> HeadSkip<'b, 'q, I, V> {
     /// Create a new instance of the head-skipping decorator over a given input
     /// and for a compiled query [`Automaton`].
     ///
@@ -121,14 +119,14 @@ impl<'b, 'q, I: Input, V: Simd> HeadSkip<'b, 'q, I, V, BLOCK_SIZE> {
     where
         'b: 'r,
         E: CanHeadSkip<'b, 'r, I, R, V>,
-        R: Recorder<I::Block<'b, BLOCK_SIZE>> + 'r,
+        R: Recorder<I::Block<'b>> + 'r,
     {
         dispatch_simd!(self.simd; self, engine =>
-        fn<'b, 'q, 'r, I, V, E, R>(head_skip: &HeadSkip<'b, 'q, I, V, BLOCK_SIZE>, engine: &mut E) -> Result<(), EngineError>
+        fn<'b, 'q, 'r, I, V, E, R>(head_skip: &HeadSkip<'b, 'q, I, V>, engine: &mut E) -> Result<(), EngineError>
         where
             'b: 'r,
             E: CanHeadSkip<'b, 'r, I, R, V>,
-            R: Recorder<I::Block<'b, BLOCK_SIZE>> + 'r,
+            R: Recorder<I::Block<'b>> + 'r,
             I: Input,
             V: Simd
         {
@@ -274,10 +272,10 @@ impl<'b, 'q, I: Input, V: Simd> HeadSkip<'b, 'q, I, V, BLOCK_SIZE> {
             /// If the `index` is not ahead of the current position of the state ([`get_idx`](ResumeClassifierState::get_idx)).
             #[inline(always)]
             #[allow(clippy::panic_in_result_fn)]
-            fn forward_to<'i, I, Q, M, const N: usize>(state: &mut ResumeClassifierState<'i, I, Q, M, N>, index: usize) -> Result<(), InputError>
+            fn forward_to<'i, I, Q, M>(state: &mut ResumeClassifierState<'i, I, Q, M>, index: usize) -> Result<(), InputError>
             where
-                I: InputBlockIterator<'i, N>,
-                Q: QuoteClassifiedIterator<'i, I, M, N>,
+                I: InputBlockIterator<'i>,
+                Q: QuoteClassifiedIterator<'i, I, M>,
             {
                 let current_block_start = state.iter.get_offset();
                 let current_block_idx = state.block.as_ref().map_or(0, |b| b.idx);
@@ -295,8 +293,8 @@ impl<'b, 'q, I: Input, V: Simd> HeadSkip<'b, 'q, I, V, BLOCK_SIZE> {
                 // and adjust the delta to cover that distance. This makes calculations simpler.
                 // Then we need to skip zero or more blocks and set our self.block to the last one we visit.
                 let remaining = delta + current_block_idx;
-                let blocks_to_skip = remaining / N;
-                let remainder = remaining % N;
+                let blocks_to_skip = remaining / BLOCK_SIZE;
+                let remainder = remaining % BLOCK_SIZE;
 
                 match state.block.as_mut() {
                     Some(b) if blocks_to_skip == 0 => {

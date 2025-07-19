@@ -18,7 +18,7 @@ use super::{
     padding::{EndPaddedInput, PaddedBlock, TwoSidesPaddedInput},
     Input, InputBlockIterator, SliceSeekable, MAX_BLOCK_SIZE,
 };
-use crate::{debug, result::InputRecorder};
+use crate::{debug, result::InputRecorder, BLOCK_SIZE};
 use rsonpath_syntax::str::JsonString;
 
 /// Input wrapping a borrowed [`[u8]`] buffer.
@@ -28,8 +28,8 @@ pub struct BorrowedBytes<'a> {
     last_block: PaddedBlock,
 }
 
-/// Iterator over blocks of [`BorrowedBytes`] of size exactly `N`.
-pub struct BorrowedBytesBlockIterator<'r, I, R, const N: usize> {
+/// Iterator over blocks of [`BorrowedBytes`] of size exactly `BLOCK_SIZE`.
+pub struct BorrowedBytesBlockIterator<'r, I, R> {
     input: I,
     idx: usize,
     recorder: &'r R,
@@ -73,7 +73,7 @@ impl<'a> From<&'a str> for BorrowedBytes<'a> {
     }
 }
 
-impl<'a, 'r, I, R, const N: usize> BorrowedBytesBlockIterator<'r, I, R, N>
+impl<'a, 'r, I, R> BorrowedBytesBlockIterator<'r, I, R>
 where
     R: InputRecorder<&'a [u8]>,
 {
@@ -89,12 +89,17 @@ where
 }
 
 impl Input for BorrowedBytes<'_> {
-    type BlockIterator<'b, 'r, R, const N: usize> = BorrowedBytesBlockIterator<'r, TwoSidesPaddedInput<'b>, R, N>
-    where Self: 'b,
-          R: InputRecorder<&'b [u8]> + 'r;
+    type BlockIterator<'b, 'r, R>
+        = BorrowedBytesBlockIterator<'r, TwoSidesPaddedInput<'b>, R>
+    where
+        Self: 'b,
+        R: InputRecorder<&'b [u8]> + 'r;
 
     type Error = Infallible;
-    type Block<'b, const N: usize> = &'b [u8] where Self: 'b;
+    type Block<'b>
+        = &'b [u8]
+    where
+        Self: 'b;
 
     #[inline(always)]
     fn leading_padding_len(&self) -> usize {
@@ -112,7 +117,7 @@ impl Input for BorrowedBytes<'_> {
     }
 
     #[inline(always)]
-    fn iter_blocks<'b, 'r, R, const N: usize>(&'b self, recorder: &'r R) -> Self::BlockIterator<'b, 'r, R, N>
+    fn iter_blocks<'b, 'r, R>(&'b self, recorder: &'r R) -> Self::BlockIterator<'b, 'r, R>
     where
         R: InputRecorder<&'b [u8]>,
     {
@@ -234,8 +239,7 @@ impl Input for BorrowedBytes<'_> {
     }
 }
 
-impl<'a, 'r, R, const N: usize> InputBlockIterator<'a, N>
-    for BorrowedBytesBlockIterator<'r, TwoSidesPaddedInput<'a>, R, N>
+impl<'a, 'r, R> InputBlockIterator<'a> for BorrowedBytesBlockIterator<'r, TwoSidesPaddedInput<'a>, R>
 where
     R: InputRecorder<&'a [u8]> + 'r,
 {
@@ -250,26 +254,26 @@ where
             // SAFETY: Bounds check above.
             // self.idx >= MBS => start >= 0, and self.idx < middle.len + MBS => self.idx < middle.len
             // By construction, middle has length divisible by N.
-            let block = unsafe { self.input.middle().get_unchecked(start..start + N) };
+            let block = unsafe { self.input.middle().get_unchecked(start..start + BLOCK_SIZE) };
             self.recorder.record_block_start(block);
-            self.idx += N;
+            self.idx += BLOCK_SIZE;
             Ok(Some(block))
         } else {
             Ok(cold_path(self))
         };
 
         #[cold]
-        fn cold_path<'a, 'r, R, const N: usize>(
-            iter: &mut BorrowedBytesBlockIterator<'r, TwoSidesPaddedInput<'a>, R, N>,
+        fn cold_path<'a, 'r, R>(
+            iter: &mut BorrowedBytesBlockIterator<'r, TwoSidesPaddedInput<'a>, R>,
         ) -> Option<&'a [u8]>
         where
             R: InputRecorder<&'a [u8]>,
         {
-            let block = iter.input.try_slice(iter.idx, N);
+            let block = iter.input.try_slice(iter.idx, BLOCK_SIZE);
 
             if let Some(b) = block {
                 iter.recorder.record_block_start(b);
-                iter.idx += N;
+                iter.idx += BLOCK_SIZE;
             }
 
             block
@@ -280,7 +284,7 @@ where
     fn offset(&mut self, count: isize) {
         assert!(count >= 0);
         debug!("offsetting input iter by {count}");
-        self.idx += count as usize * N;
+        self.idx += count as usize * BLOCK_SIZE;
     }
 
     #[inline(always)]
@@ -290,7 +294,7 @@ where
     }
 }
 
-impl<'a, 'r, R, const N: usize> InputBlockIterator<'a, N> for BorrowedBytesBlockIterator<'r, EndPaddedInput<'a>, R, N>
+impl<'a, 'r, R> InputBlockIterator<'a> for BorrowedBytesBlockIterator<'r, EndPaddedInput<'a>, R>
 where
     R: InputRecorder<&'a [u8]> + 'r,
 {
@@ -305,26 +309,24 @@ where
             // SAFETY: Bounds check above.
             // self.idx >= MBS => start >= 0, and self.idx < middle.len + MBS => self.idx < middle.len
             // By construction, middle has length divisible by N.
-            let block = unsafe { self.input.middle().get_unchecked(start..start + N) };
+            let block = unsafe { self.input.middle().get_unchecked(start..start + BLOCK_SIZE) };
             self.recorder.record_block_start(block);
-            self.idx += N;
+            self.idx += BLOCK_SIZE;
             Ok(Some(block))
         } else {
             Ok(cold_path(self))
         };
 
         #[cold]
-        fn cold_path<'a, 'r, R, const N: usize>(
-            iter: &mut BorrowedBytesBlockIterator<'r, EndPaddedInput<'a>, R, N>,
-        ) -> Option<&'a [u8]>
+        fn cold_path<'a, 'r, R>(iter: &mut BorrowedBytesBlockIterator<'r, EndPaddedInput<'a>, R>) -> Option<&'a [u8]>
         where
             R: InputRecorder<&'a [u8]>,
         {
-            let block = iter.input.try_slice(iter.idx, N);
+            let block = iter.input.try_slice(iter.idx, BLOCK_SIZE);
 
             if let Some(b) = block {
                 iter.recorder.record_block_start(b);
-                iter.idx += N;
+                iter.idx += BLOCK_SIZE;
             }
 
             block
@@ -335,7 +337,7 @@ where
     fn offset(&mut self, count: isize) {
         assert!(count >= 0);
         debug!("offsetting input iter by {count}");
-        self.idx += count as usize * N;
+        self.idx += count as usize * BLOCK_SIZE;
     }
 
     #[inline(always)]

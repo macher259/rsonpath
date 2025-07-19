@@ -10,19 +10,19 @@ use crate::{
     debug,
     engine::error::EngineError,
     input::InputBlockIterator,
-    FallibleIterator, MaskType, BLOCK_SIZE,
+    FallibleIterator, MaskType,
 };
 use std::marker::PhantomData;
 
-pub(crate) struct TailSkip<'i, I, Q, S, V, const N: usize> {
+pub(crate) struct TailSkip<'i, I, Q, S, V> {
     classifier: Option<S>,
     simd: V,
     _phantom: (PhantomData<&'i ()>, PhantomData<(I, Q)>),
 }
 
-impl<'i, I, V> TailSkip<'i, I, V::QuotesClassifier<'i, I>, V::StructuralClassifier<'i, I>, V, BLOCK_SIZE>
+impl<'i, I, V> TailSkip<'i, I, V::QuotesClassifier<'i, I>, V::StructuralClassifier<'i, I>, V>
 where
-    I: InputBlockIterator<'i, BLOCK_SIZE>,
+    I: InputBlockIterator<'i>,
     V: Simd,
 {
     pub(crate) fn new(classifier: V::StructuralClassifier<'i, I>, simd: V) -> Self {
@@ -36,10 +36,10 @@ where
     pub(crate) fn skip(&mut self, opening: BracketType) -> Result<usize, EngineError> {
         dispatch_simd!(self.simd; self, opening =>
         fn <'i, I, V>(
-            tail_skip: &mut TailSkip<'i, I, V::QuotesClassifier<'i, I>, V::StructuralClassifier<'i, I>, V, BLOCK_SIZE>,
+            tail_skip: &mut TailSkip<'i, I, V::QuotesClassifier<'i, I>, V::StructuralClassifier<'i, I>, V>,
             opening: BracketType) -> Result<usize, EngineError>
         where
-            I: InputBlockIterator<'i, BLOCK_SIZE>,
+            I: InputBlockIterator<'i>,
             V: Simd
         {
             debug!("Skipping");
@@ -107,16 +107,16 @@ where
         })
     }
 
-    pub(crate) fn stop(self) -> ResumeClassifierState<'i, I, V::QuotesClassifier<'i, I>, MaskType, BLOCK_SIZE> {
+    pub(crate) fn stop(self) -> ResumeClassifierState<'i, I, V::QuotesClassifier<'i, I>, MaskType> {
         self.classifier.expect("tail skip must always hold a classifier").stop()
     }
 }
 
-impl<'i, I, Q, S, V, const N: usize> std::ops::Deref for TailSkip<'i, I, Q, S, V, N>
+impl<'i, I, Q, S, V> std::ops::Deref for TailSkip<'i, I, Q, S, V>
 where
-    I: InputBlockIterator<'i, N>,
-    Q: QuoteClassifiedIterator<'i, I, MaskType, N>,
-    S: StructuralIterator<'i, I, Q, MaskType, N>,
+    I: InputBlockIterator<'i>,
+    Q: QuoteClassifiedIterator<'i, I, MaskType>,
+    S: StructuralIterator<'i, I, Q, MaskType>,
     V: Simd,
 {
     type Target = S;
@@ -128,11 +128,11 @@ where
     }
 }
 
-impl<'i, I, Q, S, V, const N: usize> std::ops::DerefMut for TailSkip<'i, I, Q, S, V, N>
+impl<'i, I, Q, S, V> std::ops::DerefMut for TailSkip<'i, I, Q, S, V>
 where
-    I: InputBlockIterator<'i, N>,
-    Q: QuoteClassifiedIterator<'i, I, MaskType, N>,
-    S: StructuralIterator<'i, I, Q, MaskType, N>,
+    I: InputBlockIterator<'i>,
+    Q: QuoteClassifiedIterator<'i, I, MaskType>,
+    S: StructuralIterator<'i, I, Q, MaskType>,
     V: Simd,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
