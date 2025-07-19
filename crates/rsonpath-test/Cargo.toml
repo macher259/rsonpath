@@ -9,7 +9,7 @@ keywords = ["json", "jsonpath", "query", "simd", "parser"]
 categories = ["text-processing"]
 repository = "https://github.com/V0ldek/rsonpath"
 edition = "2021"
-rust-version = "1.70.0"
+rust-version = "1.88.0"
 publish = false
 
 [dependencies]

@@ -16,7 +16,7 @@ categories = ["text-processing"]
 repository = "https://github.com/V0ldek/rsonpath"
 homepage = "https://v0ldek.github.io/rsonpath/"
 edition = "2021"
-rust-version = "1.67.1"
+rust-version = "1.88.0"
 
 [lib]
 bench = false

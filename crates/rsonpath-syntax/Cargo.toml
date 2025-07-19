@@ -10,7 +10,7 @@ exclude = ["tests", "src/cli.rs"]
 categories = ["parser-implementations", "text-processing"]
 repository = "https://github.com/V0ldek/rsonpath"
 edition = "2021"
-rust-version = "1.67.1"
+rust-version = "1.88.0"
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]
