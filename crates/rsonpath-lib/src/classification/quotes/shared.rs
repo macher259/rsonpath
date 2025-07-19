@@ -120,6 +120,11 @@ macro_rules! quote_classifier {
             fn flip_quotes_bit(&mut self) {
                 self.classifier.internal_classifier.flip_prev_quote_mask();
             }
+
+            #[inline(always)]
+            fn release_memory(&mut self) {
+                self.iter.release_memory();
+            }
         }
 
         impl<'i, I> InnerIter<I> for $name<'i, I>

@@ -166,6 +166,12 @@ where
     /// [`turn_commas_on`](`StructuralIterator::turn_commas_off`)
     /// in sequence.
     fn turn_colons_and_commas_off(&mut self);
+
+    /// Release any unneeded memory.
+    ///
+    /// This is a no-op for most implementations, but can be used
+    /// to release memory in streaming implementations.
+    fn release_memory(&mut self);
 }
 
 pub(crate) mod nosimd;

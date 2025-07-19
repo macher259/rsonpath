@@ -177,6 +177,10 @@ pub trait InputBlockIterator<'i> {
     ///
     /// The `count` parameter must be greater than 0.
     fn offset(&mut self, count: isize);
+
+    /// Release unneeded blocks.
+    /// This is only relevant for streaming implementations.
+    fn release_memory(&mut self);
 }
 
 /// A block of bytes of size `BLOCK_SIZE` returned from [`InputBlockIterator`].

@@ -39,6 +39,7 @@
  */
 
 #![allow(clippy::type_complexity)] // The private Classifier type is very complex, but we specifically macro it out.
+use crate::streaming::raw_vec_deque::StreamInput;
 use crate::{
     automaton::{error::CompilerError, Automaton, State},
     classification::{
@@ -127,6 +128,28 @@ impl Engine for MainEngine<'_> {
     }
 
     #[inline]
+    fn count_streaming<I>(&self, input_iter: I) -> Result<MatchCount, EngineError>
+    where
+        I: Iterator<Item = u8>,
+    {
+        if self.automaton.is_empty_query() {
+            return Ok(0);
+        }
+
+        let input = StreamInput::new(input_iter);
+        if self.automaton.is_select_root_query() {
+            return select_root_query::count(&input);
+        }
+        let recorder = CountRecorder::new();
+        config_simd!(self.simd => |simd| {
+            let executor = query_executor(&self.automaton, &input, &recorder, simd);
+            executor.run()
+        })?;
+
+        Ok(recorder.into())
+    }
+
+    #[inline]
     fn indices<I, S>(&self, input: &I, sink: &mut S) -> Result<(), EngineError>
     where
         I: Input,
@@ -142,6 +165,31 @@ impl Engine for MainEngine<'_> {
         let recorder = IndexRecorder::new(sink, input.leading_padding_len());
         config_simd!(self.simd => |simd| {
             let executor = query_executor(&self.automaton, input, &recorder, simd);
+            executor.run()
+        })?;
+
+        Ok(())
+    }
+
+    #[inline]
+    fn indices_streaming<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
+    where
+        I: Iterator<Item = u8>,
+        S: Sink<MatchIndex>,
+    {
+        if self.automaton.is_empty_query() {
+            return Ok(());
+        }
+
+        let input = StreamInput::new(input_iter);
+
+        if self.automaton.is_select_root_query() {
+            return select_root_query::index(&input, sink);
+        }
+
+        let recorder = IndexRecorder::new(sink, input.leading_padding_len());
+        config_simd!(self.simd => |simd| {
+            let executor = query_executor(&self.automaton, &input, &recorder, simd);
             executor.run()
         })?;
 
@@ -171,6 +219,29 @@ impl Engine for MainEngine<'_> {
     }
 
     #[inline]
+    fn approximate_spans_streaming<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
+    where
+        I: Iterator<Item = u8>,
+        S: Sink<MatchSpan>,
+    {
+        if self.automaton.is_empty_query() {
+            return Ok(());
+        }
+        let input = StreamInput::new(input_iter);
+
+        if self.automaton.is_select_root_query() {
+            return select_root_query::approx_span(&input, sink);
+        }
+        let recorder = ApproxSpanRecorder::new(sink, input.leading_padding_len());
+        config_simd!(self.simd => |simd| {
+            let executor = query_executor(&self.automaton, &input, &recorder, simd);
+            executor.run()
+        })?;
+
+        Ok(())
+    }
+
+    #[inline]
     fn matches<I, S>(&self, input: &I, sink: &mut S) -> Result<(), EngineError>
     where
         I: Input,
@@ -186,6 +257,29 @@ impl Engine for MainEngine<'_> {
         let recorder = NodesRecorder::build_recorder(sink, input.leading_padding_len());
         config_simd!(self.simd => |simd| {
             let executor = query_executor(&self.automaton, input, &recorder, simd);
+            executor.run()
+        })?;
+
+        Ok(())
+    }
+
+    #[inline]
+    fn matches_streaming<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
+    where
+        I: Iterator<Item = u8>,
+        S: Sink<Match>,
+    {
+        if self.automaton.is_empty_query() {
+            return Ok(());
+        }
+        let input = StreamInput::new(input_iter);
+
+        if self.automaton.is_select_root_query() {
+            return select_root_query::match_(&input, sink);
+        }
+        let recorder = NodesRecorder::build_recorder(sink, input.leading_padding_len());
+        config_simd!(self.simd => |simd| {
+            let executor = query_executor(&self.automaton, &input, &recorder, simd);
             executor.run()
         })?;
 
@@ -319,12 +413,18 @@ where
                     debug!("====================");
 
                     match event {
-                        Structural::Colon(idx) => eng.handle_colon(classifier, idx)?,
-                        Structural::Comma(idx) => eng.handle_comma(classifier, idx)?,
+                        Structural::Colon(idx) => {
+                            eng.handle_colon(classifier, idx)?;
+                            classifier.release_memory();
+                        },
+                        Structural::Comma(idx) => {
+                            eng.handle_comma(classifier, idx)?;
+                            classifier.release_memory();
+                        }
                         Structural::Opening(b, idx) => eng.handle_opening(classifier, b, idx)?,
                         Structural::Closing(_, idx) => {
                             eng.handle_closing(classifier, idx)?;
-
+                            classifier.release_memory();
                             if eng.depth == Depth::ZERO {
                                 break;
                             }

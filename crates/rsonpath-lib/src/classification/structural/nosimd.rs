@@ -225,6 +225,10 @@ where
         debug!("Turning colons off.");
     }
 
+    fn release_memory(&mut self) {
+        self.iter.release_memory();
+    }
+
     fn stop(self) -> ResumeClassifierState<'i, I, Q, MaskType> {
         let block = self.block.map(|b| ResumeClassifierBlockState {
             block: b.quote_classified,

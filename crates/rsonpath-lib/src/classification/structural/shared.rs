@@ -189,6 +189,11 @@ macro_rules! structural_classifier {
             }
 
             #[inline(always)]
+            fn release_memory(&mut self) {
+                self.iter.release_memory();
+            }
+
+            #[inline(always)]
             fn stop(self) -> ResumeClassifierState<'a, I, Q, $mask_ty> {
                 let block = self.block.map(|b| ResumeClassifierBlockState {
                     idx: b.get_idx() as usize,

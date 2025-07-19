@@ -66,6 +66,12 @@ pub trait QuoteClassifiedIterator<'i, I: InputBlockIterator<'i>, M>:
     /// This should be done only in very specific circumstances where the previous-block
     /// state could have been damaged due to stopping and resuming the classification at a later point.
     fn flip_quotes_bit(&mut self);
+
+    /// Release any unneeded memory.
+    ///
+    /// This is a no-op for most implementations, but can be used
+    /// to release memory in streaming implementations.
+    fn release_memory(&mut self);
 }
 
 /// Higher-level classifier that can be consumed to retrieve the inner

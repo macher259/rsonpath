@@ -137,4 +137,9 @@ where
     fn flip_quotes_bit(&mut self) {
         self.in_quotes = !self.in_quotes;
     }
+
+    #[inline]
+    fn release_memory(&mut self) {
+        self.iter.release_memory();
+    }
 }

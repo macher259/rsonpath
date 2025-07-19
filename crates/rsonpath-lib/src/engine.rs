@@ -37,6 +37,23 @@ pub trait Engine {
     where
         I: Input;
 
+    /// Find the number of matches on the given [`Input`] with memory streaming support.
+    ///
+    /// The result is equivalent to using [`matches_streaming`](Engine::matches_streaming) and counting the matches,
+    /// but in general is much more time and memory efficient.
+    ///
+    /// # Errors
+    /// An appropriate [`EngineError`] is returned if the JSON input is malformed
+    /// and the syntax error is detected.
+    ///
+    /// **Please note** that detecting malformed JSONs is not guaranteed.
+    /// Some glaring errors like mismatched braces or double quotes are raised,
+    /// but in general **the result of an engine run on an invalid JSON is undefined**.
+    /// It _is_ guaranteed that the computation terminates and does not panic.
+    fn count_streaming<I>(&self, input_iter: I) -> Result<MatchCount, EngineError>
+    where
+        I: Iterator<Item = u8>;
+
     /// Find the starting indices of matches on the given [`Input`] and write them to the [`Sink`].
     ///
     /// The result is equivalent to using [`matches`](Engine::matches) and extracting the
@@ -54,6 +71,26 @@ pub trait Engine {
     fn indices<I, S>(&self, input: &I, sink: &mut S) -> Result<(), EngineError>
     where
         I: Input,
+        S: Sink<MatchIndex>;
+
+    /// Find the starting indices of matches on the given [`Input`] and write them to the [`Sink`]
+    /// with memory streaming support.
+    ///
+    /// The result is equivalent to using [`matches_streaming`](Engine::matches_streaming) and
+    /// extracting the [`Match::span.start_idx`],
+    /// but in general is much more time and memory efficient.
+    ///
+    /// # Errors
+    /// An appropriate [`EngineError`] is returned if the JSON input is malformed
+    /// and the syntax error is detected.
+    ///
+    /// **Please note** that detecting malformed JSONs is not guaranteed.
+    /// Some glaring errors like mismatched braces or double quotes are raised,
+    /// but in general **the result of an engine run on an invalid JSON is undefined**.
+    /// It _is_ guaranteed that the computation terminates and does not panic.
+    fn indices_streaming<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
+    where
+        I: Iterator<Item = u8>,
         S: Sink<MatchIndex>;
 
     /// Find the approximate spans of matches on the given [`Input`] and write them to the [`Sink`].
@@ -81,6 +118,32 @@ pub trait Engine {
         I: Input,
         S: Sink<MatchSpan>;
 
+    /// Find the approximate spans of matches on the given [`Input`] and write them to the [`Sink`]
+    /// with memory streaming.
+    ///
+    /// "Approximate" means that the ends of spans are not guaranteed to be located exactly at the end of a match,
+    /// but may include trailing whitespace. **Importantly**, it may be beyond the rigidly-defined length of the
+    /// input, as the engine is allowed to pad the input with whitespace to help with processing. For the purposes
+    /// of this API, it is assumed that every character after the logical end of the input is a whitespace character.
+    /// With that in mind, it is guaranteed that:
+    /// 1. the span start is exact;
+    /// 2. the span encompasses the entire matched value;
+    /// 3. the only characters included after the value are JSON whitespace characters:
+    ///    space (0x20), horizontal tab (0x09), new line (0x0A), carriage return (0x0D).
+    ///
+    /// # Errors
+    /// An appropriate [`EngineError`] is returned if the JSON input is malformed
+    /// and the syntax error is detected.
+    ///
+    /// **Please note** that detecting malformed JSONs is not guaranteed.
+    /// Some glaring errors like mismatched braces or double quotes are raised,
+    /// but in general **the result of an engine run on an invalid JSON is undefined**.
+    /// It _is_ guaranteed that the computation terminates and does not panic.
+    fn approximate_spans_streaming<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
+    where
+        I: Iterator<Item = u8>,
+        S: Sink<MatchSpan>;
+
     /// Find all matches on the given [`Input`] and write them to the [`Sink`].
     ///
     /// # Errors
@@ -94,6 +157,22 @@ pub trait Engine {
     fn matches<I, S>(&self, input: &I, sink: &mut S) -> Result<(), EngineError>
     where
         I: Input,
+        S: Sink<Match>;
+
+    /// Find all matches on the given [`Input`] and write them to the [`Sink`] with
+    /// memory streaming.
+    ///
+    /// # Errors
+    /// An appropriate [`EngineError`] is returned if the JSON input is malformed
+    /// and the syntax error is detected.
+    ///
+    /// **Please note** that detecting malformed JSONs is not guaranteed.
+    /// Some glaring errors like mismatched braces or double quotes are raised,
+    /// but in general **the result of an engine run on an invalid JSON is undefined**.
+    /// It _is_ guaranteed that the computation terminates and does not panic.
+    fn matches_streaming<I, S>(&self, input_iter: I, sink: &mut S) -> Result<(), EngineError>
+    where
+        I: Iterator<Item = u8>,
         S: Sink<Match>;
 }
 
