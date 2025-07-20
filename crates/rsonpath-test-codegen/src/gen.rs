@@ -36,7 +36,7 @@ pub(crate) fn generate_test_fns(files: &mut Files) -> Result<(), io::Error> {
                 InputTypeToTest::Borrowed,
                 InputTypeToTest::Buffered,
                 InputTypeToTest::Mmap,
-                InputTypeToTest::Stream,
+                InputTypeToTest::VecDequeStream,
             ] {
                 for result_type in get_available_results(&discovered_doc.document.input.source, query)? {
                     let fn_name = format_ident!(
@@ -189,11 +189,12 @@ pub(crate) fn generate_test_fns(files: &mut Files) -> Result<(), io::Error> {
                     let #ident = unsafe { MmapInput::map_file(&json_file)? };
                 }
             }
-            InputTypeToTest::Stream => {
+            InputTypeToTest::VecDequeStream => {
                 quote! {
                     let json_file = fs::File::open(#raw_input_path)?;
                     let reader = io::BufReader::new(json_file);
-                    let #ident = reader.bytes().filter_map(Result::ok);
+                    let iter = reader.bytes().filter_map(Result::ok);
+                    let #ident = StreamInput::new(iter);
                 }
             }
         };
@@ -225,21 +226,10 @@ pub(crate) fn generate_test_fns(files: &mut Files) -> Result<(), io::Error> {
         match result_type {
             ResultTypeToTest::Count => {
                 let count = query.results.count;
-                match input_type {
-                    InputTypeToTest::Stream => {
-                        quote! {
-                            let result = #engine_ident.count_streaming(#input_ident)?;
-                            assert_eq!(result, #count, "result != expected");
-                        }
-                    },
-                    _ => {
-                        quote! {
-                            let result = #engine_ident.count(&#input_ident)?;
-                            assert_eq!(result, #count, "result != expected");
-                        }
-                    }
+                quote! {
+                    let result = #engine_ident.count(&#input_ident)?;
+                    assert_eq!(result, #count, "result != expected");
                 }
-
             }
             ResultTypeToTest::Indices => {
                 let indices = query
@@ -250,54 +240,18 @@ pub(crate) fn generate_test_fns(files: &mut Files) -> Result<(), io::Error> {
                     .iter()
                     .map(|x| x.start);
 
-                match input_type {
-                    InputTypeToTest::Stream => {
-                        quote! {
-                            let mut result = vec![];
-                            #engine_ident.indices_streaming(#input_ident, &mut result)?;
-
-                            let expected: Vec<usize> = vec![#(#indices,)*];
-                            assert_eq!(result, expected, "result != expected");
-                        }
-                    },
-                    _ => {
-                        quote! {
+                quote! {
                             let mut result = vec![];
                             #engine_ident.indices(&#input_ident, &mut result)?;
 
                             let expected: Vec<usize> = vec![#(#indices,)*];
                             assert_eq!(result, expected, "result != expected");
                         }
-                    }
-                }
+
+
 
             }
             ResultTypeToTest::ApproximateSpans(spans) => {
-                match input_type {
-                    InputTypeToTest::Stream => {
-                        quote! {
-                            let mut result = vec![];
-                            #engine_ident.approximate_spans_streaming(#input_ident, &mut result)?;
-
-                            let tups: Vec<(usize, usize)> = result.iter().map(|x| (x.start_idx(), x.end_idx())).collect();
-                            let expected: Vec<(usize, usize, Option<usize>)> = vec![#(#spans,)*];
-
-                            assert_eq!(tups.len(), expected.len(), "result.len() != expected.len()");
-
-                            for i in 0..tups.len() {
-                                let upper_bound = expected[i];
-                                let actual = tups[i];
-
-                                assert_eq!(actual.0, upper_bound.0, "result start_idx() != expected start_idx()");
-                                assert!(actual.1 >= upper_bound.1, "result end_idx() < expected end_lower_bound ({} < {})", actual.1, upper_bound.1);
-
-                                if let Some(end_upper_bound) = upper_bound.2 {
-                                    assert!(actual.1 <= end_upper_bound, "result end_idx() > expected end_upper_bound ({} > {}", actual.1, end_upper_bound);
-                                }
-                            }
-                        }
-                    },
-                    _ => {
                         quote! {
                             let mut result = vec![];
                             #engine_ident.approximate_spans(&#input_ident, &mut result)?;
@@ -319,8 +273,6 @@ pub(crate) fn generate_test_fns(files: &mut Files) -> Result<(), io::Error> {
                                 }
                             }
                         }
-                    }
-                }
             }
             ResultTypeToTest::Spans => {
                 let spans = query
@@ -328,19 +280,7 @@ pub(crate) fn generate_test_fns(files: &mut Files) -> Result<(), io::Error> {
                     .spans
                     .as_ref()
                     .expect("result without data in toml should be filtered out in get_available_results");
-                match input_type {
-                    InputTypeToTest::Stream => {
-                        quote! {
-                            let mut result = vec![];
-                            #engine_ident.matches_streaming(#input_ident, &mut result)?;
 
-                            let tups: Vec<(usize, usize)> = result.iter().map(|x| (x.span().start_idx(), x.span().end_idx())).collect();
-                            let expected: Vec<(usize, usize)> = vec![#(#spans,)*];
-
-                            assert_eq!(tups, expected, "result != expected");
-                        }
-                    },
-                    _ => {
                         quote! {
                             let mut result = vec![];
                             #engine_ident.matches(&#input_ident, &mut result)?;
@@ -350,8 +290,7 @@ pub(crate) fn generate_test_fns(files: &mut Files) -> Result<(), io::Error> {
 
                             assert_eq!(tups, expected, "result != expected");
                         }
-                    }
-                }
+
             }
             ResultTypeToTest::Nodes => {
                 let node_strings = query
@@ -359,20 +298,7 @@ pub(crate) fn generate_test_fns(files: &mut Files) -> Result<(), io::Error> {
                     .nodes
                     .as_ref()
                     .expect("result without data in toml should be filtered out in get_available_results");
-                match input_type {
-                    InputTypeToTest::Stream => {
-                        quote! {
-                            let mut result = vec![];
-                            #engine_ident.matches_streaming(#input_ident, &mut result)?;
 
-                            let utf8: Result<Vec<&str>, _> = result.iter().map(|x| str::from_utf8(x.bytes())).collect();
-                            let utf8 = utf8.expect("valid utf8");
-                            let expected: Vec<&str> = vec![#(#node_strings,)*];
-
-                            assert_eq!(utf8, expected, "result != expected");
-                        }
-                    },
-                    _ => {
                         quote! {
                             let mut result = vec![];
                             #engine_ident.matches(&#input_ident, &mut result)?;
@@ -383,8 +309,8 @@ pub(crate) fn generate_test_fns(files: &mut Files) -> Result<(), io::Error> {
 
                             assert_eq!(utf8, expected, "result != expected");
                         }
-                    }
-                }
+
+
             }
         }
     }
@@ -446,8 +372,12 @@ pub(crate) fn generate_imports() -> TokenStream {
         use std::fs;
         #[allow(unused_imports)]
         use std::str;
+        #[allow(unused_imports)]
         use std::io;
+        #[allow(unused_imports)]
         use std::io::Read;
+        #[allow(unused_imports)]
+        use rsonpath::streaming::*;
     }
 }
 
@@ -456,7 +386,7 @@ enum InputTypeToTest {
     Borrowed,
     Buffered,
     Mmap,
-    Stream,
+    VecDequeStream,
 }
 
 #[derive(Clone)]
@@ -482,7 +412,7 @@ impl Display for InputTypeToTest {
                 Self::Borrowed => "BorrowedBytes",
                 Self::Buffered => "BufferedInput",
                 Self::Mmap => "MmapInput",
-                Self::Stream => "StreamInput",
+                Self::VecDequeStream => "VecDequeStream",
             }
         )
     }

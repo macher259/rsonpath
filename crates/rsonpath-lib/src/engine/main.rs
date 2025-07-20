@@ -40,6 +40,7 @@
 
 #![allow(clippy::type_complexity)] // The private Classifier type is very complex, but we specifically macro it out.
 use crate::streaming::raw_vec_deque::StreamInput;
+use crate::streaming::StreamingInput;
 use crate::{
     automaton::{error::CompilerError, Automaton, State},
     classification::{
