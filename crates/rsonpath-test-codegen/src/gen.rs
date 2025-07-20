@@ -36,6 +36,7 @@ pub(crate) fn generate_test_fns(files: &mut Files) -> Result<(), io::Error> {
                 InputTypeToTest::Borrowed,
                 InputTypeToTest::Buffered,
                 InputTypeToTest::Mmap,
+                InputTypeToTest::Stream,
             ] {
                 for result_type in get_available_results(&discovered_doc.document.input.source, query)? {
                     let fn_name = format_ident!(
@@ -150,7 +151,7 @@ pub(crate) fn generate_test_fns(files: &mut Files) -> Result<(), io::Error> {
         let query_string = &query.query;
         let (input_ident, input_setup_code) = generate_input_setup(input_json_path, input_type);
         let (engine_ident, engine_setup_code) = generate_engine_setup(engine_type, &query_ident);
-        let run_and_diff_code = generate_run_and_diff_code(query, result_type, &engine_ident, &input_ident);
+        let run_and_diff_code = generate_run_and_diff_code(query, result_type, input_type, &engine_ident, &input_ident);
 
         quote! {
             println!(#full_description);
@@ -188,6 +189,13 @@ pub(crate) fn generate_test_fns(files: &mut Files) -> Result<(), io::Error> {
                     let #ident = unsafe { MmapInput::map_file(&json_file)? };
                 }
             }
+            InputTypeToTest::Stream => {
+                quote! {
+                    let json_file = fs::File::open(#raw_input_path)?;
+                    let reader = io::BufReader::new(json_file);
+                    let #ident = reader.bytes().filter_map(Result::ok);
+                }
+            }
         };
 
         (ident, code)
@@ -210,17 +218,28 @@ pub(crate) fn generate_test_fns(files: &mut Files) -> Result<(), io::Error> {
     fn generate_run_and_diff_code(
         query: &model::Query,
         result_type: ResultTypeToTest,
+        input_type: InputTypeToTest,
         engine_ident: &Ident,
         input_ident: &Ident,
     ) -> TokenStream {
         match result_type {
             ResultTypeToTest::Count => {
                 let count = query.results.count;
-                quote! {
-                    let result = #engine_ident.count(&#input_ident)?;
-
-                    assert_eq!(result, #count, "result != expected");
+                match input_type {
+                    InputTypeToTest::Stream => {
+                        quote! {
+                            let result = #engine_ident.count_streaming(#input_ident)?;
+                            assert_eq!(result, #count, "result != expected");
+                        }
+                    },
+                    _ => {
+                        quote! {
+                            let result = #engine_ident.count(&#input_ident)?;
+                            assert_eq!(result, #count, "result != expected");
+                        }
+                    }
                 }
+
             }
             ResultTypeToTest::Indices => {
                 let indices = query
@@ -230,33 +249,75 @@ pub(crate) fn generate_test_fns(files: &mut Files) -> Result<(), io::Error> {
                     .expect("result without data in toml should be filtered out in get_available_results")
                     .iter()
                     .map(|x| x.start);
-                quote! {
-                    let mut result = vec![];
-                    #engine_ident.indices(&#input_ident, &mut result)?;
 
-                    let expected: Vec<usize> = vec![#(#indices,)*];
-                    assert_eq!(result, expected, "result != expected");
+                match input_type {
+                    InputTypeToTest::Stream => {
+                        quote! {
+                            let mut result = vec![];
+                            #engine_ident.indices_streaming(#input_ident, &mut result)?;
+
+                            let expected: Vec<usize> = vec![#(#indices,)*];
+                            assert_eq!(result, expected, "result != expected");
+                        }
+                    },
+                    _ => {
+                        quote! {
+                            let mut result = vec![];
+                            #engine_ident.indices(&#input_ident, &mut result)?;
+
+                            let expected: Vec<usize> = vec![#(#indices,)*];
+                            assert_eq!(result, expected, "result != expected");
+                        }
+                    }
                 }
+
             }
             ResultTypeToTest::ApproximateSpans(spans) => {
-                quote! {
-                    let mut result = vec![];
-                    #engine_ident.approximate_spans(&#input_ident, &mut result)?;
+                match input_type {
+                    InputTypeToTest::Stream => {
+                        quote! {
+                            let mut result = vec![];
+                            #engine_ident.approximate_spans_streaming(#input_ident, &mut result)?;
 
-                    let tups: Vec<(usize, usize)> = result.iter().map(|x| (x.start_idx(), x.end_idx())).collect();
-                    let expected: Vec<(usize, usize, Option<usize>)> = vec![#(#spans,)*];
+                            let tups: Vec<(usize, usize)> = result.iter().map(|x| (x.start_idx(), x.end_idx())).collect();
+                            let expected: Vec<(usize, usize, Option<usize>)> = vec![#(#spans,)*];
 
-                    assert_eq!(tups.len(), expected.len(), "result.len() != expected.len()");
+                            assert_eq!(tups.len(), expected.len(), "result.len() != expected.len()");
 
-                    for i in 0..tups.len() {
-                        let upper_bound = expected[i];
-                        let actual = tups[i];
+                            for i in 0..tups.len() {
+                                let upper_bound = expected[i];
+                                let actual = tups[i];
 
-                        assert_eq!(actual.0, upper_bound.0, "result start_idx() != expected start_idx()");
-                        assert!(actual.1 >= upper_bound.1, "result end_idx() < expected end_lower_bound ({} < {})", actual.1, upper_bound.1);
+                                assert_eq!(actual.0, upper_bound.0, "result start_idx() != expected start_idx()");
+                                assert!(actual.1 >= upper_bound.1, "result end_idx() < expected end_lower_bound ({} < {})", actual.1, upper_bound.1);
 
-                        if let Some(end_upper_bound) = upper_bound.2 {
-                            assert!(actual.1 <= end_upper_bound, "result end_idx() > expected end_upper_bound ({} > {}", actual.1, end_upper_bound);
+                                if let Some(end_upper_bound) = upper_bound.2 {
+                                    assert!(actual.1 <= end_upper_bound, "result end_idx() > expected end_upper_bound ({} > {}", actual.1, end_upper_bound);
+                                }
+                            }
+                        }
+                    },
+                    _ => {
+                        quote! {
+                            let mut result = vec![];
+                            #engine_ident.approximate_spans(&#input_ident, &mut result)?;
+
+                            let tups: Vec<(usize, usize)> = result.iter().map(|x| (x.start_idx(), x.end_idx())).collect();
+                            let expected: Vec<(usize, usize, Option<usize>)> = vec![#(#spans,)*];
+
+                            assert_eq!(tups.len(), expected.len(), "result.len() != expected.len()");
+
+                            for i in 0..tups.len() {
+                                let upper_bound = expected[i];
+                                let actual = tups[i];
+
+                                assert_eq!(actual.0, upper_bound.0, "result start_idx() != expected start_idx()");
+                                assert!(actual.1 >= upper_bound.1, "result end_idx() < expected end_lower_bound ({} < {})", actual.1, upper_bound.1);
+
+                                if let Some(end_upper_bound) = upper_bound.2 {
+                                    assert!(actual.1 <= end_upper_bound, "result end_idx() > expected end_upper_bound ({} > {}", actual.1, end_upper_bound);
+                                }
+                            }
                         }
                     }
                 }
@@ -267,14 +328,29 @@ pub(crate) fn generate_test_fns(files: &mut Files) -> Result<(), io::Error> {
                     .spans
                     .as_ref()
                     .expect("result without data in toml should be filtered out in get_available_results");
-                quote! {
-                    let mut result = vec![];
-                    #engine_ident.matches(&#input_ident, &mut result)?;
+                match input_type {
+                    InputTypeToTest::Stream => {
+                        quote! {
+                            let mut result = vec![];
+                            #engine_ident.matches_streaming(#input_ident, &mut result)?;
 
-                    let tups: Vec<(usize, usize)> = result.iter().map(|x| (x.span().start_idx(), x.span().end_idx())).collect();
-                    let expected: Vec<(usize, usize)> = vec![#(#spans,)*];
+                            let tups: Vec<(usize, usize)> = result.iter().map(|x| (x.span().start_idx(), x.span().end_idx())).collect();
+                            let expected: Vec<(usize, usize)> = vec![#(#spans,)*];
 
-                    assert_eq!(tups, expected, "result != expected");
+                            assert_eq!(tups, expected, "result != expected");
+                        }
+                    },
+                    _ => {
+                        quote! {
+                            let mut result = vec![];
+                            #engine_ident.matches(&#input_ident, &mut result)?;
+
+                            let tups: Vec<(usize, usize)> = result.iter().map(|x| (x.span().start_idx(), x.span().end_idx())).collect();
+                            let expected: Vec<(usize, usize)> = vec![#(#spans,)*];
+
+                            assert_eq!(tups, expected, "result != expected");
+                        }
+                    }
                 }
             }
             ResultTypeToTest::Nodes => {
@@ -283,15 +359,31 @@ pub(crate) fn generate_test_fns(files: &mut Files) -> Result<(), io::Error> {
                     .nodes
                     .as_ref()
                     .expect("result without data in toml should be filtered out in get_available_results");
-                quote! {
-                    let mut result = vec![];
-                    #engine_ident.matches(&#input_ident, &mut result)?;
+                match input_type {
+                    InputTypeToTest::Stream => {
+                        quote! {
+                            let mut result = vec![];
+                            #engine_ident.matches_streaming(#input_ident, &mut result)?;
 
-                    let utf8: Result<Vec<&str>, _> = result.iter().map(|x| str::from_utf8(x.bytes())).collect();
-                    let utf8 = utf8.expect("valid utf8");
-                    let expected: Vec<&str> = vec![#(#node_strings,)*];
+                            let utf8: Result<Vec<&str>, _> = result.iter().map(|x| str::from_utf8(x.bytes())).collect();
+                            let utf8 = utf8.expect("valid utf8");
+                            let expected: Vec<&str> = vec![#(#node_strings,)*];
 
-                    assert_eq!(utf8, expected, "result != expected");
+                            assert_eq!(utf8, expected, "result != expected");
+                        }
+                    },
+                    _ => {
+                        quote! {
+                            let mut result = vec![];
+                            #engine_ident.matches(&#input_ident, &mut result)?;
+
+                            let utf8: Result<Vec<&str>, _> = result.iter().map(|x| str::from_utf8(x.bytes())).collect();
+                            let utf8 = utf8.expect("valid utf8");
+                            let expected: Vec<&str> = vec![#(#node_strings,)*];
+
+                            assert_eq!(utf8, expected, "result != expected");
+                        }
+                    }
                 }
             }
         }
@@ -354,6 +446,8 @@ pub(crate) fn generate_imports() -> TokenStream {
         use std::fs;
         #[allow(unused_imports)]
         use std::str;
+        use std::io;
+        use std::io::Read;
     }
 }
 
@@ -362,6 +456,7 @@ enum InputTypeToTest {
     Borrowed,
     Buffered,
     Mmap,
+    Stream,
 }
 
 #[derive(Clone)]
@@ -387,6 +482,7 @@ impl Display for InputTypeToTest {
                 Self::Borrowed => "BorrowedBytes",
                 Self::Buffered => "BufferedInput",
                 Self::Mmap => "MmapInput",
+                Self::Stream => "StreamInput",
             }
         )
     }
