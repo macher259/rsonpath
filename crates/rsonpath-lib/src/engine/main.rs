@@ -422,7 +422,10 @@ where
                             eng.handle_comma(classifier, idx)?;
                             classifier.release_memory();
                         }
-                        Structural::Opening(b, idx) => eng.handle_opening(classifier, b, idx)?,
+                        Structural::Opening(b, idx) => {
+                        eng.handle_opening(classifier, b, idx)?;
+                        classifier.release_memory();
+                        },
                         Structural::Closing(_, idx) => {
                             eng.handle_closing(classifier, idx)?;
                             classifier.release_memory();
