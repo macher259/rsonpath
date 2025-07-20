@@ -37,6 +37,7 @@ pub(crate) fn generate_test_fns(files: &mut Files) -> Result<(), io::Error> {
                 InputTypeToTest::Buffered,
                 InputTypeToTest::Mmap,
                 InputTypeToTest::VecDequeStream,
+                InputTypeToTest::ContagiousDequeStream,
             ] {
                 for result_type in get_available_results(&discovered_doc.document.input.source, query)? {
                     let fn_name = format_ident!(
@@ -195,6 +196,14 @@ pub(crate) fn generate_test_fns(files: &mut Files) -> Result<(), io::Error> {
                     let reader = io::BufReader::new(json_file);
                     let iter = reader.bytes().filter_map(Result::ok);
                     let #ident = StreamInput::new(iter);
+                }
+            }
+            InputTypeToTest::ContagiousDequeStream => {
+                quote! {
+                    let json_file = fs::File::open(#raw_input_path)?;
+                    let reader = io::BufReader::new(json_file);
+                    let iter = reader.bytes().filter_map(Result::ok);
+                    let #ident = ContagiousInputStream::new(iter);
                 }
             }
         };
@@ -375,9 +384,11 @@ pub(crate) fn generate_imports() -> TokenStream {
         #[allow(unused_imports)]
         use std::io;
         #[allow(unused_imports)]
-        use std::io::Read;
+        use std::io::{Read, BufReader};
         #[allow(unused_imports)]
         use rsonpath::streaming::*;
+
+        const BLOCK_SIZE: usize = 64;
     }
 }
 
@@ -387,6 +398,7 @@ enum InputTypeToTest {
     Buffered,
     Mmap,
     VecDequeStream,
+    ContagiousDequeStream,
 }
 
 #[derive(Clone)]
@@ -413,6 +425,7 @@ impl Display for InputTypeToTest {
                 Self::Buffered => "BufferedInput",
                 Self::Mmap => "MmapInput",
                 Self::VecDequeStream => "VecDequeStream",
+                Self::ContagiousDequeStream => "ContagiousDequeStream",
             }
         )
     }
