@@ -53,3 +53,12 @@ simd = []
 name = "approx_spans_usage"
 path = "examples/approx_spans_usage.rs"
 doc-scrape-examples = true
+
+[[example]]
+name = "count_usage"
+path = "examples/matches_usage.rs"
+
+[[example]]
+name = "streaming_count_usage"
+path = "examples/streaming_matches_usage.rs"
+
