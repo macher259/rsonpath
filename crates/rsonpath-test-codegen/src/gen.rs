@@ -38,6 +38,7 @@ pub(crate) fn generate_test_fns(files: &mut Files) -> Result<(), io::Error> {
                 InputTypeToTest::Mmap,
                 InputTypeToTest::VecDequeStream,
                 InputTypeToTest::ContagiousDequeStream,
+                InputTypeToTest::VecStream,
             ] {
                 for result_type in get_available_results(&discovered_doc.document.input.source, query)? {
                     let fn_name = format_ident!(
@@ -204,6 +205,14 @@ pub(crate) fn generate_test_fns(files: &mut Files) -> Result<(), io::Error> {
                     let reader = io::BufReader::new(json_file);
                     let iter = reader.bytes().filter_map(Result::ok);
                     let #ident = ContagiousInputStream::new(iter);
+                }
+            }
+            InputTypeToTest::VecStream => {
+                quote! {
+                    let json_file = fs::File::open(#raw_input_path)?;
+                    let reader = io::BufReader::new(json_file);
+                    let iter = reader.bytes().filter_map(Result::ok);
+                    let #ident = VecStream::new(iter);
                 }
             }
         };
@@ -399,6 +408,7 @@ enum InputTypeToTest {
     Mmap,
     VecDequeStream,
     ContagiousDequeStream,
+    VecStream,
 }
 
 #[derive(Clone)]
@@ -426,6 +436,7 @@ impl Display for InputTypeToTest {
                 Self::Mmap => "MmapInput",
                 Self::VecDequeStream => "VecDequeStream",
                 Self::ContagiousDequeStream => "ContagiousDequeStream",
+                Self::VecStream => "VecStream",
             }
         )
     }
