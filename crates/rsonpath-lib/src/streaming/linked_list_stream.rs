@@ -74,6 +74,9 @@ impl<I: Iterator<Item = u8>> SliceSeekable for InnerStream<I> {
         loop {
             let block_idx = idx / BLOCK_SIZE;
             let offset = idx % BLOCK_SIZE;
+            while cursor.index().map(|i| i > block_idx).unwrap_or(false) {
+                cursor.move_prev();
+            }
             while cursor.index().map(|i| i < block_idx).unwrap_or(false) {
                 cursor.move_next();
             }
@@ -171,6 +174,9 @@ impl<I: Iterator<Item = u8>> SliceSeekable for InnerStream<I> {
 
             while cursor.index().map(|i| i < block_idx).unwrap_or(false) {
                 cursor.move_next();
+            }
+            while cursor.index().map(|i| i > block_idx).unwrap_or(false) {
+                cursor.move_prev();
             }
             let b = cursor.current()?.0[offset];
             if !b.is_ascii_whitespace() {
