@@ -1,4 +1,5 @@
 #![feature(iter_next_chunk)]
+#![feature(linked_list_cursors)]
 //! Blazing fast execution of JSONPath queries.
 //!
 //! JSONPath parser, execution engines and byte stream utilities useful when parsing

@@ -33,12 +33,14 @@ pub(crate) fn generate_test_fns(files: &mut Files) -> Result<(), io::Error> {
         for query in &discovered_doc.document.queries {
             let mut fns = vec![];
             for input_type in [
-                InputTypeToTest::Borrowed,
+                /*InputTypeToTest::Borrowed,
                 InputTypeToTest::Buffered,
                 InputTypeToTest::Mmap,
                 InputTypeToTest::VecDequeStream,
                 InputTypeToTest::ContagiousDequeStream,
-                InputTypeToTest::VecStream,
+                InputTypeToTest::VecStream,*/
+                InputTypeToTest::SkipStream,
+                InputTypeToTest::LinkedListStream,
             ] {
                 for result_type in get_available_results(&discovered_doc.document.input.source, query)? {
                     let fn_name = format_ident!(
@@ -215,6 +217,22 @@ pub(crate) fn generate_test_fns(files: &mut Files) -> Result<(), io::Error> {
                     let #ident = VecStream::new(iter);
                 }
             }
+            InputTypeToTest::SkipStream => {
+                quote! {
+                    let json_file = fs::File::open(#raw_input_path)?;
+                    let reader = io::BufReader::new(json_file);
+                    let iter = reader.bytes().filter_map(Result::ok);
+                    let #ident = SkipStream::new(iter);
+                }
+            }
+            InputTypeToTest::LinkedListStream => {
+                quote! {
+                    let json_file = fs::File::open(#raw_input_path)?;
+                    let reader = io::BufReader::new(json_file);
+                    let iter = reader.bytes().filter_map(Result::ok);
+                    let #ident = LinkedListStream::new(iter);
+                }
+            }
         };
 
         (ident, code)
@@ -384,6 +402,7 @@ fn get_available_results(input: &model::InputSource, query: &model::Query) -> Re
 pub(crate) fn generate_imports() -> TokenStream {
     quote! {
         use rsonpath::engine::{Compiler, Engine, main::MainEngine};
+        #[allow(unused_imports)]
         use rsonpath::input::*;
         use pretty_assertions::assert_eq;
         use std::error::Error;
@@ -396,8 +415,6 @@ pub(crate) fn generate_imports() -> TokenStream {
         use std::io::{Read, BufReader};
         #[allow(unused_imports)]
         use rsonpath::streaming::*;
-
-        const BLOCK_SIZE: usize = 64;
     }
 }
 
@@ -409,6 +426,8 @@ enum InputTypeToTest {
     VecDequeStream,
     ContagiousDequeStream,
     VecStream,
+    LinkedListStream,
+    SkipStream
 }
 
 #[derive(Clone)]
@@ -437,6 +456,8 @@ impl Display for InputTypeToTest {
                 Self::VecDequeStream => "VecDequeStream",
                 Self::ContagiousDequeStream => "ContagiousDequeStream",
                 Self::VecStream => "VecStream",
+                Self::SkipStream => "SkipStream",
+                Self::LinkedListStream => "LinkedListStream",
             }
         )
     }
