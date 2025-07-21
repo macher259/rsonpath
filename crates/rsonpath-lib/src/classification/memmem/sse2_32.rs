@@ -64,6 +64,7 @@ where
             let (block1, block2) = block.halves();
             let classified1 = classifier.classify_block(block1);
             let classified2 = classifier.classify_block(block2);
+            self.iter.release_memory();
 
             let first_bitmask = m32::combine_16(classified1.first, classified2.first);
             let second_bitmask = m32::combine_16(classified1.second, classified2.second);
@@ -141,6 +142,7 @@ where
             let (block1, block2) = block.halves();
             let classified1 = classifier.classify_block(block1);
             let classified2 = classifier.classify_block(block2);
+            self.iter.release_memory();
 
             let first_bitmask = m32::combine_16(classified1.first, classified2.first);
             let second_bitmask = m32::combine_16(classified1.second, classified2.second);

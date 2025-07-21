@@ -415,18 +415,22 @@ where
 
                     match event {
                         Structural::Colon(idx) => {
+                                                classifier.release_memory();
                             eng.handle_colon(classifier, idx)?;
                             classifier.release_memory();
                         },
                         Structural::Comma(idx) => {
+                            classifier.release_memory();
                             eng.handle_comma(classifier, idx)?;
                             classifier.release_memory();
                         }
                         Structural::Opening(b, idx) => {
+                        classifier.release_memory();
                         eng.handle_opening(classifier, b, idx)?;
                         classifier.release_memory();
                         },
                         Structural::Closing(_, idx) => {
+                                                classifier.release_memory();
                             eng.handle_closing(classifier, idx)?;
                             classifier.release_memory();
                             if eng.depth == Depth::ZERO {

@@ -235,6 +235,7 @@ impl<'b, 'q, I: Input, V: Simd> HeadSkip<'b, 'q, I, V> {
                                         crate::result::MatchedNodeType::Atomic,
                                     )?;
                                     let mut classifier = head_skip.simd.resume_structural_classification(classifier_state);
+                                    classifier.release_memory();
                                     let next_structural = classifier.next()?;
 
                                     match next_structural {
@@ -258,6 +259,7 @@ impl<'b, 'q, I: Input, V: Simd> HeadSkip<'b, 'q, I, V> {
                     debug!("No memmem matches, exiting");
                     break;
                 }
+                input_iter.release_memory();
             }
 
             return Ok(());
@@ -321,7 +323,6 @@ impl<'b, 'q, I: Input, V: Simd> HeadSkip<'b, 'q, I, V> {
                 }
 
                 debug!("forward_to({index}) results in idx moved to {}", state.get_idx());
-
                 Ok(())
             }
         })

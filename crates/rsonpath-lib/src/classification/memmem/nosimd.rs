@@ -59,6 +59,7 @@ where
                 if c == first_c && j > 0 && self.input.is_member_match(j - 1, j + label_size - 1, label).e()? {
                     return Ok(Some((j - 1, block)));
                 }
+                self.iter.release_memory();
             }
 
             offset += block.len();
