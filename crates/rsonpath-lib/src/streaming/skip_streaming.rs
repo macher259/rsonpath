@@ -292,7 +292,7 @@ impl<I: Iterator<Item = u8>> Input for StreamInput<I> {
             from_idx += 1;
             if res.is_some() {
                 return Ok(res.map(|(idx, b)| (idx + inner.released * BLOCK_SIZE, b)));
-            } else if !inner.read_block(from_idx) {
+            } else if !inner.read_block(from_idx + 1) {
                 return Ok(None);
             }
         }
@@ -311,7 +311,7 @@ impl<I: Iterator<Item = u8>> Input for StreamInput<I> {
             from_idx += 1;
             if res.is_some() {
                 return Ok(res.map(|(idx, byte)| (idx + inner.released * BLOCK_SIZE, byte)));
-            } else if !inner.read_block(from_idx) {
+            } else if !inner.read_block(from_idx + 1) {
                 return Ok(None);
             }
         }

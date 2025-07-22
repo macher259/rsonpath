@@ -213,8 +213,8 @@ where
     fn seek_backward(&self, from: usize, needle: u8) -> Option<usize> {
         let mut iter = self.iter.borrow_mut();
         let from = from - iter.released * BLOCK_SIZE;
-
-        iter.get_block(from);
+        let from_idx = from / BLOCK_SIZE;
+        iter.get_block(from_idx);
         let slice = iter.as_slice();
         slice
             .seek_backward(from, needle)
@@ -237,7 +237,7 @@ where
             if res.is_some() {
                 return Ok(res.map(|(idx, byte)| (idx + iter.released * BLOCK_SIZE, byte)));
             } else {
-                let b = iter.get_block(from_idx);
+                let b = iter.get_block(from_idx + 1);
                 if b.is_none() {
                     return Ok(None);
                 }
@@ -260,7 +260,7 @@ where
             if res.is_some() {
                 return Ok(res.map(|(idx, byte)| (idx + iter.released * BLOCK_SIZE, byte)));
             } else {
-                let b = iter.get_block(from_idx);
+                let b = iter.get_block(from_idx + 1);
                 if b.is_none() {
                     return Ok(None);
                 }
@@ -272,8 +272,8 @@ where
     fn seek_non_whitespace_backward(&self, from: usize) -> Option<(usize, u8)> {
         let mut iter = self.iter.borrow_mut();
         let from = from - iter.released * BLOCK_SIZE;
-
-        iter.get_block(from);
+        let from_idx = from / BLOCK_SIZE;
+        iter.get_block(from_idx);
         let slice = iter.as_slice();
         slice
             .seek_non_whitespace_backward(from)
