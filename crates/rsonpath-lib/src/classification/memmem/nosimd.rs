@@ -57,6 +57,7 @@ where
                 let j = offset + i;
 
                 if c == first_c && j > 0 && self.input.is_member_match(j - 1, j + label_size - 1, label).e()? {
+                    self.iter.release_memory();
                     return Ok(Some((j - 1, block)));
                 }
                 self.iter.release_memory();

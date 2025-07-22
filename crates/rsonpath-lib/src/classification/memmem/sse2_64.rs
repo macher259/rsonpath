@@ -66,7 +66,7 @@ where
             let classified2 = classifier.classify_block(block2);
             let classified3 = classifier.classify_block(block3);
             let classified4 = classifier.classify_block(block4);
-            self.iter.release_memory();
+            //self.iter.release_memory();
 
             let first_bitmask = m64::combine_16(
                 classified1.first,

@@ -40,7 +40,7 @@
 
 #![allow(clippy::type_complexity)] // The private Classifier type is very complex, but we specifically macro it out.
 use crate::streaming::raw_vec_deque::StreamInput;
-use crate::streaming::StreamingInput;
+use crate::streaming::{ContagiousInputStream, LinkedListStream, StreamingInput, VecStream};
 use crate::{
     automaton::{error::CompilerError, Automaton, State},
     classification::{
@@ -415,22 +415,18 @@ where
 
                     match event {
                         Structural::Colon(idx) => {
-                                                classifier.release_memory();
                             eng.handle_colon(classifier, idx)?;
-                            classifier.release_memory();
+                            // Do not release memory here, since we could peek Opening and bail out.
                         },
                         Structural::Comma(idx) => {
-                            classifier.release_memory();
                             eng.handle_comma(classifier, idx)?;
-                            classifier.release_memory();
+                            // Do not release memory here, since we could peek Opening and bail out.
                         }
                         Structural::Opening(b, idx) => {
-                        classifier.release_memory();
                         eng.handle_opening(classifier, b, idx)?;
                         classifier.release_memory();
                         },
                         Structural::Closing(_, idx) => {
-                                                classifier.release_memory();
                             eng.handle_closing(classifier, idx)?;
                             classifier.release_memory();
                             if eng.depth == Depth::ZERO {
@@ -477,6 +473,7 @@ where
                 break;
             }
         }
+        classifier.release_memory();
         // Alternatively, match consider the fallback transition if it accepts.
         let fallback_state = self.automaton[self.state].fallback_state();
         if !any_matched && self.automaton.is_accepting(fallback_state) {
@@ -515,7 +512,7 @@ where
     /// This method only handles atomic values after the comma.
     /// Objects and arrays are processed at their respective opening character.
     #[inline(always)]
-    fn handle_comma(&mut self, _classifier: &mut Classifier!(), idx: usize) -> Result<(), EngineError> {
+    fn handle_comma(&mut self, classifier: &mut Classifier!(), idx: usize) -> Result<(), EngineError> {
         debug!("Comma");
 
         self.recorder.record_value_terminator(idx, self.depth)?;
@@ -546,7 +543,7 @@ where
                 self.record_match_detected_at(idx + 1, NodeType::Atomic)?;
             }
         }
-
+        classifier.release_memory();
         Ok(())
     }
 

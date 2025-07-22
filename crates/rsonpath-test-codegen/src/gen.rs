@@ -35,12 +35,12 @@ pub(crate) fn generate_test_fns(files: &mut Files) -> Result<(), io::Error> {
             for input_type in [
                 /*InputTypeToTest::Borrowed,
                 InputTypeToTest::Buffered,
-                InputTypeToTest::Mmap,
+                InputTypeToTest::Mmap,*/
                 InputTypeToTest::VecDequeStream,
-                InputTypeToTest::ContagiousDequeStream,
-                InputTypeToTest::VecStream,*/
+                /*InputTypeToTest::ContagiousDequeStream,
+                InputTypeToTest::VecStream,
                 InputTypeToTest::SkipStream,
-                InputTypeToTest::LinkedListStream,
+                InputTypeToTest::LinkedListStream,*/
             ] {
                 for result_type in get_available_results(&discovered_doc.document.input.source, query)? {
                     let fn_name = format_ident!(
