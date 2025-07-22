@@ -39,10 +39,10 @@ impl<I: Iterator<Item = u8>> SliceSeekable for InnerStream<I> {
         let deque = self.data.0.borrow();
         let expected = member.quoted().as_bytes();
         debug_assert!(to < deque.len() * BLOCK_SIZE, "Index out of bounds");
-        if to - from < member.quoted().len() {
-            return false;
-        }
-        if expected.len() < 32 {
+        //if to - from < member.quoted().len() {
+        //    return false;
+        //}
+        if false && expected.len() < 32 {
             for (i, &b) in expected.iter().enumerate() {
                 let abs_idx = from + i;
                 let block_idx = abs_idx / BLOCK_SIZE;
@@ -67,6 +67,8 @@ impl<I: Iterator<Item = u8>> SliceSeekable for InnerStream<I> {
             let mut deque = self.data.0.borrow_mut();
             let ptr: *const u8 = deque.make_contiguous().as_ptr().cast();
             let bytes = unsafe { slice::from_raw_parts(ptr, len) };
+            debug_assert!(to > from);
+            debug_assert!(to < bytes.len());
             let slice = &bytes[from..to];
             let matches = slice == member.quoted().as_bytes() && (from == 0 || bytes[from - 1] != b'\\');
 
@@ -321,7 +323,7 @@ impl<I: Iterator<Item = u8>> Input for StreamInput<I> {
             from_idx += 1;
             if res.is_some() {
                 return Ok(res.map(|(idx, byte)| (idx + inner.released * BLOCK_SIZE, byte)));
-            } else if !inner.read_block(from_idx) {
+            } else if !inner.read_block(from_idx + 1) {
                 return Ok(None);
             }
         }
