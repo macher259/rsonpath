@@ -510,6 +510,24 @@ pub const fn az_tenants() -> Dataset {
     }
 }
 
+pub const fn gh_events() -> Dataset {
+    Dataset {
+        name: "gh_events",
+        path: dataset_path!("github/2021-06-06-18.json"),
+        source: DatasetSource::LocalJson,
+        checksum: hex!("cc9ef0e9067c52a5c088586012b5373b892e9d2a195d9e456bb907f2d266e0e6"),
+    }
+}
+
+pub const fn gh_events_big() -> Dataset {
+    Dataset {
+        name: "gh_events_big",
+        path: dataset_path!("big/gharchive-2024-01-01.json"),
+        source: DatasetSource::LocalJson,
+        checksum: hex!("cfe23f5f855b738531a6254f31203d89e2cc4005b828e9a200fbe88de12f9938"),
+    }
+}
+
 #[derive(Error, Debug)]
 pub enum DatasetError {
     #[error("Filesystem error: {0}")]

@@ -2,3 +2,8 @@ pub mod jsonpath_rust;
 pub mod rsonpath;
 pub mod rust_jsurfer;
 pub mod serde_json_path;
+pub mod streaming_contagious_deque;
+pub mod streaming_deque;
+pub mod streaming_linked_list;
+pub mod streaming_skip_list;
+pub mod streaming_vec;

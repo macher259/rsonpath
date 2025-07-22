@@ -224,7 +224,7 @@ impl Display for MatchDisplay {
     }
 }
 
-struct VoidSink;
+pub struct VoidSink;
 
 impl<D> Sink<D> for VoidSink {
     type Error = Infallible;

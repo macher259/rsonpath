@@ -1,5 +1,10 @@
 use self::implementation::prepare;
 use self::{benchmark_options::BenchmarkOptions, implementation::prepare_with_id};
+use crate::implementations::streaming_deque::StreamingDeque;
+use crate::implementations::streaming_linked_list::StreamingLinkedList;
+use crate::implementations::streaming_skip_list::StreamingSkipList;
+use crate::implementations::streaming_vec::StreamingVec;
+use crate::prelude::BenchTarget::StreamingContagiousDeque;
 use crate::{
     dataset,
     implementations::{
@@ -24,6 +29,11 @@ pub enum BenchTarget<'q> {
     JSurfer(&'q str),
     JsonpathRust(&'q str),
     SerdeJsonPath(&'q str),
+    StreamingVec(&'q str),
+    StreamingDeque(&'q str),
+    StreamingContagiousDeque(&'q str),
+    StreamingLinkedList(&'q str),
+    StreamingSkipList(&'q str),
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -150,6 +160,26 @@ impl Benchset {
             .add_target(BenchTarget::RsonpathMmap(query, ResultType::Count))
     }
 
+    pub fn add_all_rsonpath_streaming(self, query: &str) -> Result<Self, BenchmarkError> {
+        self.add_target(BenchTarget::StreamingVec(query))?
+            .add_target(BenchTarget::StreamingDeque(query))?
+            .add_target(BenchTarget::StreamingContagiousDeque(query))?
+            .add_target(BenchTarget::StreamingLinkedList(query))?
+            .add_target(BenchTarget::StreamingSkipList(query))
+    }
+
+    pub fn add_rsonpath_and_streaming(self, query: &str) -> Result<Self, BenchmarkError> {
+        self.add_target(BenchTarget::Rsonpath(query, ResultType::Count))?
+            .add_target(BenchTarget::StreamingVec(query))?
+            .add_target(BenchTarget::StreamingDeque(query))
+    }
+
+    pub fn add_streaming_and_jsurfer(self, query: &str) -> Result<Self, BenchmarkError> {
+        self.add_target(BenchTarget::StreamingVec(query))?
+            .add_target(BenchTarget::StreamingDeque(query))?
+            .add_target(BenchTarget::JSurfer(query))
+    }
+
     pub fn add_all_targets_except_jsurfer(self, query: &str) -> Result<Self, BenchmarkError> {
         self.add_target(BenchTarget::RsonpathMmap(query, ResultType::Full))?
             .add_target(BenchTarget::JsonpathRust(query))?
@@ -234,6 +264,31 @@ impl Target for BenchTarget<'_> {
                 let prepared = prepare(serde_json_path, file_path, q, load_ahead_of_time, compile_ahead_of_time)?;
                 Ok(Box::new(prepared))
             }
+            BenchTarget::StreamingVec(q) => {
+                let rsonpath = StreamingVec::new()?;
+                let prepared = prepare(rsonpath, file_path, q, load_ahead_of_time, compile_ahead_of_time)?;
+                Ok(Box::new(prepared))
+            }
+            BenchTarget::StreamingDeque(q) => {
+                let rsonpath = StreamingDeque::new()?;
+                let prepared = prepare(rsonpath, file_path, q, load_ahead_of_time, compile_ahead_of_time)?;
+                Ok(Box::new(prepared))
+            }
+            BenchTarget::StreamingContagiousDeque(q) => {
+                let rsonpath = crate::implementations::streaming_contagious_deque::StreamingContagiousDeque::new()?;
+                let prepared = prepare(rsonpath, file_path, q, load_ahead_of_time, compile_ahead_of_time)?;
+                Ok(Box::new(prepared))
+            }
+            BenchTarget::StreamingLinkedList(q) => {
+                let rsonpath = StreamingLinkedList::new()?;
+                let prepared = prepare(rsonpath, file_path, q, load_ahead_of_time, compile_ahead_of_time)?;
+                Ok(Box::new(prepared))
+            }
+            BenchTarget::StreamingSkipList(q) => {
+                let rsonpath = StreamingSkipList::new()?;
+                let prepared = prepare(rsonpath, file_path, q, load_ahead_of_time, compile_ahead_of_time)?;
+                Ok(Box::new(prepared))
+            }
         }
     }
 
@@ -262,6 +317,31 @@ impl Target for BenchTarget<'_> {
             }
             BenchTarget::RsonpathMmap(q, ResultType::Count) => {
                 let rsonpath = RsonpathMmapCount::new()?;
+                let prepared = prepare_with_id(rsonpath, id, file_path, q, load_ahead_of_time, compile_ahead_of_time)?;
+                Ok(Box::new(prepared))
+            }
+            BenchTarget::StreamingVec(q) => {
+                let rsonpath = StreamingVec::new()?;
+                let prepared = prepare_with_id(rsonpath, id, file_path, q, load_ahead_of_time, compile_ahead_of_time)?;
+                Ok(Box::new(prepared))
+            }
+            BenchTarget::StreamingDeque(q) => {
+                let rsonpath = StreamingDeque::new()?;
+                let prepared = prepare_with_id(rsonpath, id, file_path, q, load_ahead_of_time, compile_ahead_of_time)?;
+                Ok(Box::new(prepared))
+            }
+            BenchTarget::StreamingContagiousDeque(q) => {
+                let rsonpath = StreamingDeque::new()?;
+                let prepared = prepare_with_id(rsonpath, id, file_path, q, load_ahead_of_time, compile_ahead_of_time)?;
+                Ok(Box::new(prepared))
+            }
+            BenchTarget::StreamingLinkedList(q) => {
+                let rsonpath = StreamingDeque::new()?;
+                let prepared = prepare_with_id(rsonpath, id, file_path, q, load_ahead_of_time, compile_ahead_of_time)?;
+                Ok(Box::new(prepared))
+            }
+            BenchTarget::StreamingSkipList(q) => {
+                let rsonpath = StreamingDeque::new()?;
                 let prepared = prepare_with_id(rsonpath, id, file_path, q, load_ahead_of_time, compile_ahead_of_time)?;
                 Ok(Box::new(prepared))
             }

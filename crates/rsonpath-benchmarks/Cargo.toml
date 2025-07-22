@@ -41,6 +41,7 @@ serde_json_path = "0.7.1"
 tar = "0.4.42"
 thiserror = "1.0.64"
 
+
 [patch.crates-io]
 rsonpath-lib = { path = "../rsonpath-lib" }
 rsonpath-syntax = { path = "../rsonpath-syntax" }
@@ -78,4 +79,16 @@ harness = false
 
 [[bench]]
 name = "rust_native"
+harness = false
+
+[[bench]]
+name = "main_streaming"
+harness = false
+
+[[bench]]
+name = "streaming_regression"
+harness = false
+
+[[bench]]
+name = "streaming_jsurfer"
 harness = false
