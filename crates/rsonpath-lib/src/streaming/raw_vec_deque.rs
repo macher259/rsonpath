@@ -39,10 +39,10 @@ impl<I: Iterator<Item = u8>> SliceSeekable for InnerStream<I> {
         let deque = self.data.0.borrow();
         let expected = member.quoted().as_bytes();
         debug_assert!(to < deque.len() * BLOCK_SIZE, "Index out of bounds");
-        //if to - from < member.quoted().len() {
-        //    return false;
-        //}
-        if false && expected.len() < 32 {
+        if to - from < member.quoted().len() {
+            return false;
+        }
+        if expected.len() < 16 {
             for (i, &b) in expected.iter().enumerate() {
                 let abs_idx = from + i;
                 let block_idx = abs_idx / BLOCK_SIZE;
@@ -304,7 +304,7 @@ impl<I: Iterator<Item = u8>> Input for StreamInput<I> {
             from_idx += 1;
             if res.is_some() {
                 return Ok(res.map(|(idx, b)| (idx + inner.released * BLOCK_SIZE, b)));
-            } else if !inner.read_block(from_idx) {
+            } else if !inner.read_block(from_idx + 1) {
                 return Ok(None);
             }
         }
