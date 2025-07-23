@@ -1,11 +1,13 @@
 import requests
 import gzip
 from io import BytesIO
+import os
 
 def main():
     date_hour = "2021-06-06-18"
     url = f"https://data.gharchive.org/{date_hour}.json.gz"
-    output_file = f"{date_hour}.json"
+    os.makedirs("data/github", exist_ok=True)
+    output_file = f"data/github/{date_hour}.json"
 
     print(f"Downloading and converting: {url}")
 

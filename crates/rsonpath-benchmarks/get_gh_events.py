@@ -2,6 +2,7 @@ import requests
 import gzip
 import json
 from io import BytesIO
+import os
 
 def stream_hour_to_output(fout, date: str, hour: int, is_first: bool):
     key = f"{date}-{hour}"
@@ -35,8 +36,9 @@ def stream_hour_to_output(fout, date: str, hour: int, is_first: bool):
 def main():
     date = "2024-01-01"
     output_file = "data/big/gharchive-2015-01-01.json"
+    os.makedirs("data/big", exist_ok=True)
 
-    with open(output_file, "w", encoding="utf-8") as fout:
+with open(output_file, "w", encoding="utf-8") as fout:
         fout.write("{\n")
 
         for hour in range(24):
