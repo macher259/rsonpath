@@ -42,6 +42,38 @@ $ rq '$..a.b' --json '{"c":{"a":{"b":42}}}'
 
 For details, consult `rq --help` or [the rsonbook](https://v0ldek.github.io/rsonpath/).
 
+
+### Memory streaming
+
+Rsonpath now supports streaming for large files. Please see [the example usage](https://github.com/macher259/rsonpath/blob/thesis/crates/rsonpath-lib/examples/streaming_matches_usage.rs).
+You can run this example:
+```console
+$  cargo run --release --example streaming_matches_usage json_file_path query
+```
+Example of running an example:
+```console
+$  cargo run --release --example streaming_matches_usage crates/rsonpath-benchmarks/data/small/az_tenants.json '$[*].name'
+```
+
+You can check results with the non-streamed version via:
+```console
+$  cargo run --release --example matches_usage json_file_path query
+```
+
+Additionally, you can check memory usage using [Heaptrack](https://github.com/KDE/heaptrack) for a built binary:
+```console
+$  cargo build --release --example streaming_matches_usage
+$  heaptrack target/release/examples/streaming_matches_usage json_file_path query
+```
+Please note that for smaller files it could not show any memory savings.
+We recommend testing with bigger files. For example a collection of GitHub events via [GitHub archive](https://www.gharchive.org/).
+```console
+$  wget https://data.gharchive.org/2021-01-01-18.json.gz && gzip -d 2021-01-01-18.json.gz
+$  heaptrack target/release/examples/streaming_matches_usage 2021-01-01-18.json.gz '$..sha'
+```
+![Comparison of memory usage](/img/memory-streaming-comparison.png)
+
+
 ### Results
 
 The result of running a query is a sequence of matched values, delimited by newlines.
